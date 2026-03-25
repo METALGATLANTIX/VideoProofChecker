@@ -4,16 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>VideoProofChecker</title>
-
-<!-- PWA -->
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#f0c040">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="VidProof">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap');
 :root {
@@ -485,6 +475,89 @@ html,body {
 [data-tip]{position:relative;}
 [data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:rgba(0,0,0,.92);color:var(--text);font-family:var(--mono);font-size:.6rem;padding:4px 8px;border-radius:3px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;z-index:1000;border:1px solid var(--border);}
 [data-tip]:hover::after{opacity:1;}
+
+/* ═══ スマホ横向きレスポンシブ ═══ */
+@media (max-height: 520px) and (orientation: landscape) {
+
+  /* アプリ全体：min-heightを解除してビューポートに合わせる */
+  #app {
+    grid-template-rows: 32px 1fr auto;
+    height: 100dvh;
+    min-height: unset;
+  }
+
+  /* トップバー：コンパクトに */
+  #topbar {
+    padding: 0 6px;
+    gap: 5px;
+  }
+  .logo { font-size: .75rem; }
+  #open-btn { padding: 3px 8px; font-size: .7rem; }
+  #btn-clear-all { padding: 2px 6px; font-size: .6rem; }
+  #res-badge { font-size: .68rem; padding: 2px 8px; min-width: 80px; }
+  #help-btn { padding: 3px 7px; font-size: .65rem; height: 22px; }
+  #cpanel-tog { width: 26px; height: 26px; }
+  #cbadge { font-size: .72rem; }
+
+  /* ジョグダイヤル：90px に縮小 */
+  .jog-wrap canvas { width: 90px !important; height: 90px !important; }
+  .jog-overlay { width: 90px !important; height: 90px !important; }
+
+  /* ボトムバー */
+  #bottom-bar { padding: 4px 6px; gap: 4px; }
+
+  /* ボタン類：小さく */
+  .btn { min-width: 36px; height: 30px; padding: 0 6px; font-size: .85rem; }
+  .btn.play-btn { min-width: 44px; font-size: 1rem; }
+  .btn.rev-btn  { min-width: 44px; font-size: 1rem; }
+  .btn-lbl { font-size: .52rem; }
+  .btn-unit { gap: 1px; }
+
+  /* コントロール行の間隔を詰める */
+  #ctrl-row1 { gap: 6px; }
+  #ctrl-row2 { gap: 6px; }
+  #ctrl-row1 .col-left, #ctrl-row1 .col-right { margin-bottom: 2px; }
+  #middle-area { gap: 3px; }
+
+  /* 左右カラム幅を縮小 */
+  .col-left  { width: 110px; }
+  .col-right { width: 110px; }
+
+  /* 速度プリセットボタン：一部を非表示 */
+  .spd-pre[data-s="6"]  { display: none; }
+  .spd-pre[data-s="10"] { display: none; }
+  .spd-pre { padding: 4px 8px; font-size: .75rem; height: 28px; }
+
+  /* 速度ボタン */
+  .spd-btn { width: 22px; height: 22px; font-size: .8rem; }
+  #spd-val { font-size: .8rem; min-width: 28px; }
+
+  /* ボリュームスライダー */
+  .vol-lbl { font-size: .65rem; }
+
+  /* ミュート・書き出しボタン */
+  #btn-mute    { width: 28px; height: 26px; font-size: .8rem; }
+  #export-btn  { padding: 2px 8px; height: 26px; font-size: .65rem; }
+  #btn-voice   { padding: 0 8px; height: 28px; font-size: .65rem; }
+
+  /* コメント入力 */
+  #comment-input { height: 28px; font-size: .75rem; padding: 3px 8px; }
+  #comment-row { gap: 4px; }
+
+  /* マークジャンプ */
+  #mk-jump-prev, #mk-jump-next { width: 24px; height: 24px; font-size: .75rem; }
+  #mk-jump-label { font-size: .68rem; padding: 2px 6px; }
+
+  /* シークバー */
+  #seek-track { height: 22px; }
+
+  /* タイムコードオーバーレイ */
+  #tc-overlay { font-size: 1.3rem; padding: 4px 10px; top: 6px; right: 8px; }
+  #tc-df-badge { top: 34px; right: 10px; font-size: .48rem; }
+
+  /* ヘルプモーダル */
+  #help-modal { max-height: 90vh; }
+}
 </style>
 </head>
 <body tabindex="0" style="outline:none;">
@@ -925,6 +998,12 @@ class JogDial {
 
 const jogL = new JogDial('jog-L', n => stepFrame(n), () => toggleRevPlay(), '◀');
 const jogR = new JogDial('jog-R', n => stepFrame(n), () => togglePlay(),    '▶');
+
+// 画面回転時にジョグダイヤルを再描画
+window.addEventListener('resize', () => {
+  setTimeout(() => { jogL._draw(); jogR._draw(); }, 100);
+});
+
 
 // ════════════════════════════════════════════
 // FILE LOAD
@@ -1552,17 +1631,8 @@ document.addEventListener('keydown', e=>{
 // これはrenderer本体で動くため確実に動作する
 // ══════════════════════════════════════════
 // ════════════════════════════════════════════
-// SERVICE WORKER 登録 (PWA)
+// HELP MODAL
 // ════════════════════════════════════════════
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(() => console.log('[PWA] Service Worker 登録完了'))
-      .catch(err => console.warn('[PWA] SW登録失敗:', err));
-  });
-}
-
-
 const helpBtn     = $('help-btn');
 const helpOverlay = $('help-overlay');
 const helpClose   = $('help-modal-close');
