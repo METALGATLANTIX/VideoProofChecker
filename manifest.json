@@ -1,0 +1,25 @@
+{
+  "name": "VideoProofChecker",
+  "short_name": "VidProof",
+  "description": "動画の校正・レビューツール。フレーム単位の操作・マーカー・コメント機能付き。",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#f0c040",
+  "orientation": "landscape-primary",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

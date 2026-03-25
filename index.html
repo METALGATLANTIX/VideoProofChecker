@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VideoProofChecker</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f0c040">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VidProof">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap');
+:root {
+  --bg:#0a0a0f; --bg2:#111118; --bg3:#181820; --panel:#13131c;
+  -webkit-focus-ring-color: transparent;
+  --border:rgba(255,255,255,0.09);
+  --acc:#f0c040; --gold:#c8960c; --goldbr:#e8b020;
+  --red:#e05050; --ytred:#FF0000; --blue:#40c0f0; --green:#50e090;
+  --text:#e8e8f0; --muted:#55556a;
+  --mono:'Share Tech Mono',monospace;
+  --ui:'Barlow Condensed',sans-serif;
+  --body:'Barlow',sans-serif;
+}
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+* { outline:0 !important; outline-width:0 !important; outline-color:transparent !important; -webkit-tap-highlight-color:transparent !important; -webkit-focus-ring-color:transparent !important; }
+*:focus, *:focus-visible, *:focus-within, *:active { outline:0 !important; outline-width:0 !important; box-shadow:none !important; -webkit-focus-ring-color:transparent !important; }
+/* :focus border-color は全削除（青枠の原因のため） */
+.jog-canvas, .jog-canvas:focus { outline:0 !important; border:none !important; box-shadow:none !important; }
+html,body {
+  height:100%; background:var(--bg); color:var(--text);
+  font-family:var(--body); overflow:hidden; user-select:none;
+}
+
+/* ═══ LAYOUT ═══ */
+#app {
+  display: grid;
+  grid-template-rows: 42px 1fr auto;
+  height: 100vh; min-height: 600px;
+}
+
+/* ═══ TOPBAR ═══ */
+#topbar {
+  display: flex; align-items: center; gap: 8px; padding: 0 12px;
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+}
+#topbar > * { -webkit-app-region: no-drag; }
+
+.logo {
+  font-family: 'Meiryo UI', 'Meiryo', 'Yu Gothic UI', sans-serif;
+  font-weight: 700; font-size: .9rem;
+  letter-spacing: .06em; color: var(--acc); white-space: nowrap; flex-shrink: 0;
+}
+.tsep { width:1px; height:18px; background:var(--border); flex-shrink:0; }
+
+#open-btn {
+  padding: 5px 14px; background: var(--acc); color: #000;
+  font-family: var(--ui); font-weight: 700; font-size: .8rem;
+  letter-spacing: .1em; cursor: pointer; border-radius: 3px;
+  text-transform: uppercase; white-space: nowrap; border: none; flex-shrink: 0;
+}
+#open-btn:hover { opacity:.85; }
+
+#file-name {
+  font-family: var(--mono); font-size: .72rem; color: #ffffff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 1; min-width: 0;
+}
+
+#btn-clear-all {
+  padding: 4px 10px;
+  background: rgba(224,80,80,.15); border: 1px solid rgba(224,80,80,.45);
+  border-radius: 3px; color: var(--red);
+  font-family: var(--ui); font-size: .7rem; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: all .15s;
+}
+#btn-clear-all:hover { background:rgba(224,80,80,.3); border-color:var(--red); }
+
+#res-badge {
+  font-family: var(--mono); font-size: .82rem; color: var(--blue);
+  padding: 4px 18px; border: 1.5px solid var(--blue); border-radius: 3px;
+  white-space: nowrap; min-width: 120px; text-align: center;
+  font-weight: 700; flex-shrink: 0;
+}
+
+#cpanel-tog {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--acc); color: #000;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0;
+  transition: all .15s;
+  box-shadow: 0 2px 6px rgba(0,0,0,.4);
+}
+#cpanel-tog:hover { background: #ffe060; box-shadow: 0 3px 10px rgba(0,0,0,.5); }
+#cbadge {
+  font-family: var(--mono); font-size: .85rem;
+  font-weight: 700; color: #000;
+}
+
+/* ═══ VIDEO + SEEKBAR ═══ */
+#video-seek-area {
+  display: flex; flex-direction: column;
+  background: #000; overflow: hidden;
+}
+#video-area {
+  flex: 1; position: relative;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; cursor: pointer;
+}
+#dropzone {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; border: 2px dashed rgba(255,255,255,.06); cursor: default;
+}
+.dz-icon { font-size:2.8rem; color:var(--muted); }
+.dz-text { font-family:var(--ui); font-size:1rem; font-weight:700; letter-spacing:.12em; color:var(--muted); text-transform:uppercase; }
+.dz-sub  { font-family:var(--mono); font-size:.65rem; color:#2a2a3a; }
+#dropzone.over { border-color:var(--acc); }
+
+#main-video { width:100%; height:100%; object-fit:contain; display:none; }
+#markers-ov { position:absolute; inset:0; pointer-events:none; overflow:visible; }
+
+#tc-overlay {
+  position: absolute; top: 10px; right: 12px; z-index: 20;
+  background: #000; color: #fff;
+  font-family: var(--mono); font-size: 2.1rem; font-weight: 700;
+  letter-spacing: .12em; padding: 8px 20px; border-radius: 6px;
+  border: 2px solid rgba(255,255,255,.28); cursor: move; line-height: 1.4;
+  transition: border-color .2s; user-select:none;
+}
+#tc-overlay:hover { border-color:rgba(255,255,255,.5); }
+#tc-df-badge {
+  position: absolute; top: 48px; right: 14px; z-index: 21;
+  font-family: var(--mono); font-size: .55rem; color: rgba(255,255,255,.4);
+  background: rgba(0,0,0,.75); padding: 2px 6px; border-radius: 2px;
+  pointer-events: none; letter-spacing: .1em;
+}
+
+#seekbar-row { flex-shrink:0; background:var(--panel); border-top:1px solid var(--border); }
+#seek-track {
+  position:relative; width:100%; height:32px;
+  display:flex; align-items:center; cursor:pointer; padding:0 12px;
+}
+#seek-bg    { position:absolute; left:12px; right:12px; top:50%; transform:translateY(-50%); height:4px; background:var(--bg3); border-radius:2px; }
+#seek-fill  { position:absolute; left:12px; top:50%; transform:translateY(-50%); height:4px; background:var(--ytred); border-radius:2px; width:0%; pointer-events:none; }
+#seek-thumb { position:absolute; left:12px; top:50%; transform:translate(-50%,-50%); width:14px; height:14px; background:var(--ytred); border-radius:50%; box-shadow:0 0 6px var(--ytred); pointer-events:none; z-index:2; }
+.tlm { position:absolute; top:50%; transform:translate(-50%,-50%); cursor:pointer; z-index:3; pointer-events:auto; }
+.tlm-tri { width:0; height:0; border-left:5px solid transparent; border-right:5px solid transparent; border-bottom:9px solid var(--gold); filter:drop-shadow(0 0 4px var(--gold)); }
+.tlm:hover .tlm-tri { filter:drop-shadow(0 0 8px var(--gold)) brightness(1.3); }
+.tlm-num { font-family:var(--mono); font-size:.55rem; color:var(--gold); text-align:center; margin-top:1px; line-height:1; }
+
+/* ═══ BOTTOM BAR ═══ */
+#bottom-bar {
+  background: var(--panel); border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+}
+
+.jog-wrap { position:relative; flex-shrink:0; }
+.jog-canvas { display:block; border-radius:50%; outline:none; pointer-events:none; }
+.jog-overlay {
+  position:absolute; top:0; left:0;
+  width:140px; height:140px;
+  border-radius:50%;
+  cursor:grab;
+  outline:none !important;
+  -webkit-tap-highlight-color:transparent;
+}
+.jog-overlay:active { cursor:grabbing; }
+
+/* ═══ MIDDLE AREA (2段レイアウト・ブロック分割) ═══ */
+#middle-area {
+  flex:1; min-width:0;
+  display:flex; flex-direction:column; gap:5px;
+  align-self:stretch; justify-content:center;
+}
+
+#ctrl-row1 { display:flex; align-items:flex-end; justify-content:center; gap:12px; }
+#ctrl-row2 { display:flex; align-items:center; justify-content:center; gap:12px; }
+
+/* 3列の幅を固定して上下を揃える */
+.ctrl-block { display:flex; align-items:center; gap:6px; }
+.col-left   { width:150px; justify-content:center; }
+.col-center { justify-content:center; }
+.col-right  { width:150px; justify-content:center; }
+/* 1段目の左右要素を再生ボタンの「ボタン部分」の高さに合わせる */
+#ctrl-row1 .col-left, #ctrl-row1 .col-right { margin-bottom: 5px; }
+
+/* ボタン類 */
+.btn-unit { display:flex; flex-direction:column; align-items:center; gap:3px; }
+.btn-lbl  {
+  font-family:var(--ui); font-size:.62rem; font-weight:700;
+  letter-spacing:.05em; color:var(--muted); white-space:nowrap; line-height:1;
+  text-transform:uppercase;
+}
+.btn {
+  display:flex; align-items:center; justify-content:center;
+  min-width:52px; height:42px; padding:0 10px;
+  background:var(--bg3); border:1px solid var(--border); border-radius:5px;
+  cursor:pointer; color:var(--text); font-size:1rem;
+  transition:all .15s; flex-shrink:0; white-space:nowrap;
+  font-family:var(--mono); line-height:1; outline:none;
+}
+.btn:hover  { background:var(--bg); border-color:var(--acc); color:var(--acc); }
+.btn:active { transform:scale(.95); }
+.btn.act    { background:#e82020; border-color:#e82020; color:#fff; }
+.btn.act-blue { background:var(--blue); border-color:var(--blue); color:#fff; }
+.btn.play-btn { min-width:60px; font-size:1.2rem; border-color:rgba(240,192,64,.4); color:var(--acc); }
+.btn.play-btn.act { color:#fff; }
+.pause-icon { display:inline-flex; align-items:center; gap:4px; }
+.pause-icon span { display:inline-block; width:4px; height:16px; background:currentColor; border-radius:1px; }
+.btn.rev-btn  { min-width:60px; font-size:1.2rem; border-color:rgba(64,192,240,.4); color:var(--blue); }
+.btn.rev-btn:hover { border-color:var(--border); color:var(--blue); }
+.btn.rev-btn.act-blue { color:#fff; }
+
+#btn-prev10, #btn-next10 { font-size:.85rem; line-height:1; display:flex; align-items:center; justify-content:center; gap:1px; position:relative; top:1px; }
+.csep { width:1px; height:28px; background:var(--border); flex-shrink:0; align-self:center; }
+
+/* ボリュームバー */
+.vol-lbl {
+  font-family:var(--mono); font-size:.75rem; color:var(--muted); font-weight:700;
+  white-space:nowrap; flex-shrink:0;
+}
+#vol-slider {
+  -webkit-appearance:none; appearance:none;
+  flex:1; height:6px; border-radius:3px;
+  background: linear-gradient(to right, var(--acc) 0%, var(--acc) 100%, var(--bg3) 100%);
+  outline:none; cursor:pointer; min-width: 0;
+}
+#vol-slider::-webkit-slider-thumb {
+  -webkit-appearance:none; appearance:none;
+  width:16px; height:16px; border-radius:50%;
+  background:var(--acc); border:2px solid #000;
+  box-shadow:0 0 4px rgba(240,192,64,.6); cursor:pointer;
+}
+#vol-slider::-moz-range-thumb {
+  width:16px; height:16px; border-radius:50%;
+  background:var(--acc); border:2px solid #000; cursor:pointer;
+}
+
+/* 速度・その他ボタン */
+.lbl { font-family:var(--ui); font-size:.65rem; font-weight:700; letter-spacing:.1em; color:var(--muted); text-transform:uppercase; white-space:nowrap; }
+#spd-val { font-family:var(--mono); font-size:.9rem; color:var(--acc); min-width:38px; text-align:center; flex-shrink:0; }
+.spd-btn {
+  width:28px; height:28px; font-size:.9rem;
+  background:var(--bg3); border:1px solid var(--border); border-radius:3px;
+  cursor:pointer; color:var(--text);
+  display:flex; align-items:center; justify-content:center;
+  transition:all .15s; flex-shrink:0;
+}
+.spd-btn:hover { border-color:var(--acc); color:var(--acc); }
+.spd-pre {
+  font-family:var(--mono); font-size:.85rem; padding:8px 16px;
+  background:var(--bg3); border:1px solid var(--border); border-radius:4px;
+  cursor:pointer; color:var(--muted); transition:all .15s; flex-shrink:0; white-space:nowrap;
+  min-width:50px; text-align:center; height:38px;
+  display:flex; align-items:center; justify-content:center;
+}
+.spd-pre:hover, .spd-pre.on { border-color:var(--acc); color:var(--acc); }
+
+#btn-mute {
+  display:flex; align-items:center; justify-content:center;
+  width:36px; height:32px;
+  background:var(--bg3); border:1px solid var(--border); border-radius:4px;
+  cursor:pointer; color:var(--text); font-size:.9rem;
+  transition:all .15s; flex-shrink:0;
+}
+#btn-mute:hover { border-color:var(--acc); }
+#btn-mute.act { background:rgba(224,80,80,.2); border-color:var(--red); }
+
+#export-btn {
+  display:flex; align-items:center; gap:4px;
+  padding:4px 12px; height:32px;
+  background:var(--bg3); border:1px solid var(--border); border-radius:4px;
+  cursor:pointer; color:var(--green);
+  font-family:var(--ui); font-size:.72rem; font-weight:700;
+  letter-spacing:.08em; text-transform:uppercase; white-space:nowrap;
+  transition:all .15s; flex-shrink:0;
+}
+#export-btn:hover { border-color:var(--green); }
+
+/* コメント入力 */
+#sel-badge {
+  font-family:var(--mono); font-size:.68rem; color:var(--gold);
+  padding:2px 8px; background:rgba(200,150,12,.12);
+  border:1px solid rgba(200,150,12,.3); border-radius:3px;
+  display:none; align-items:center; gap:6px; flex-shrink:0;
+}
+#sel-badge.show { display:flex; }
+#comment-row { display:flex; gap:6px; align-items:center; }
+
+/* 枠線を 0.22 -> 0.5 にして明るく */
+#comment-input {
+  flex:1; background:var(--bg3); border:1px solid rgba(255,255,255,0.5); border-radius:4px;
+  color:var(--text); font-family:var(--body); font-size:.83rem;
+  padding:5px 10px; outline:none; height:36px; min-width:0; transition:border-color .2s;
+}
+#comment-input:focus { border-color:var(--acc); }
+#comment-input::placeholder { color:var(--muted); }
+#comment-input.mk { border-color:var(--acc); }
+
+#btn-voice {
+  display:flex; align-items:center; gap:4px;
+  padding:0 14px; height:36px;
+  background:var(--bg3); border:1px solid rgba(255,255,255,0.5); border-radius:4px;
+  cursor:pointer; color:var(--text);
+  font-family:var(--ui); font-size:.72rem; font-weight:700;
+  transition:all .15s; flex-shrink:0; white-space:nowrap;
+}
+#btn-voice:hover { border-color:var(--acc); color:var(--acc); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+#btn-voice.on { border-color:var(--red); color:var(--red); animation:blink .7s infinite; }
+
+/* マークジャンプ（1段目右へ移動） */
+#mk-jump-prev, #mk-jump-next {
+  width:32px; height:32px;
+  background:var(--bg3); border:1px solid rgba(255,255,255,.2); border-radius:4px;
+  cursor:pointer; color:var(--text); font-size:.85rem;
+  display:flex; align-items:center; justify-content:center;
+  transition:all .15s; flex-shrink:0;
+}
+#mk-jump-prev:hover, #mk-jump-next:hover { border-color:var(--acc); color:var(--acc); }
+#mk-jump-label {
+  font-family:var(--mono); font-size:.78rem; color:var(--gold);
+  flex:1; text-align:center; padding:4px 10px;
+  background:var(--bg3); border:1px solid rgba(200,150,12,.3); border-radius:4px;
+  cursor:pointer;
+}
+#mk-jump-label:hover { border-color:var(--acc); }
+
+/* ═══ MARKERS ON VIDEO ═══ */
+.vmarker-wrap {
+  position:absolute; transform:translate(-50%,-100%);
+  pointer-events:auto; cursor:pointer; z-index:10;
+  opacity:0; transition:opacity .15s;
+}
+.vmarker-wrap.visible { opacity:1; }
+.vmarker-body { display:flex; flex-direction:column; align-items:center; filter:drop-shadow(0 0 6px var(--gold)); }
+.vmarker-num {
+  font-family:var(--mono); font-weight:700; font-size:.7rem;
+  background:var(--gold); color:#000;
+  border-radius:99px; padding:1px 6px; margin-bottom:2px;
+  line-height:1.4; min-width:20px; text-align:center; box-shadow:0 0 8px var(--gold);
+}
+.vmarker-wrap.sel .vmarker-num { background:var(--acc); box-shadow:0 0 12px var(--acc); }
+.vmarker-tri { width:0; height:0; border-left:9px solid transparent; border-right:9px solid transparent; border-top:16px solid var(--gold); }
+.vmarker-wrap.sel .vmarker-tri { border-top-color:var(--acc); }
+.vmarker-tip {
+  position:absolute; bottom:100%; left:50%; transform:translateX(-50%);
+  background:rgba(0,0,0,.93); border:1px solid var(--gold);
+  padding:5px 9px; border-radius:4px; font-size:.72rem; color:var(--text);
+  display:none; pointer-events:none; z-index:20;
+  min-width:120px; max-width:240px; white-space:normal;
+  font-family:var(--body); line-height:1.5;
+}
+.vmarker-wrap:hover .vmarker-tip { display:block; }
+
+/* ═══ EXPORT PANEL ═══ */
+#cpanel {
+  position:fixed; right:0; top:0; bottom:0; width:300px;
+  background:var(--panel); border-left:1px solid var(--border);
+  display:flex; flex-direction:column; z-index:500;
+  transform:translateX(100%); transition:transform .3s cubic-bezier(.16,1,.3,1);
+}
+#cpanel.open { transform:translateX(0); }
+#cph { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--border); flex-shrink:0; }
+#cph-title { font-family:var(--ui); font-weight:700; font-size:.85rem; letter-spacing:.15em; text-transform:uppercase; color:var(--acc); }
+#cph-close { cursor:pointer; color:var(--muted); font-size:1.1rem; padding:4px 8px; }
+#cph-close:hover { color:var(--text); }
+#clist { flex:1; overflow-y:auto; padding:8px; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+.ci { padding:8px 10px; border-radius:4px; background:var(--bg3); border:1px solid var(--border); margin-bottom:6px; cursor:pointer; transition:border-color .15s; position:relative; }
+.ci:hover { border-color:var(--acc); }
+.ci-tc  { font-family:var(--mono); font-size:.65rem; color:var(--acc); margin-bottom:2px; }
+.ci-txt { font-size:.78rem; line-height:1.5; color:var(--text); word-break:break-all; }
+.ci-del { position:absolute; top:6px; right:8px; color:var(--muted); font-size:.72rem; cursor:pointer; opacity:0; transition:opacity .15s; background:var(--bg); border-radius:3px; padding:1px 5px; }
+.ci:hover .ci-del { opacity:1; }
+.ci-del:hover { color:var(--red); }
+.ci-empty {
+  border-style: dashed; border-color: rgba(200,150,12,.3);
+  background: rgba(200,150,12,.04);
+}
+.ci-empty:hover { border-color:var(--acc); }
+.ci-empty-input {
+  width:100%; background:transparent; border:none; outline:none;
+  color:var(--text); font-family:var(--body); font-size:.78rem;
+  padding:2px 0; line-height:1.5;
+}
+.ci-empty-hint {
+  font-size:.7rem; color:var(--muted); font-style:italic; pointer-events:none;
+}
+#cpanel-export { padding:10px 12px; border-top:1px solid var(--border); flex-shrink:0; display:flex; flex-direction:column; gap:6px; }
+.exp-row { display:flex; gap:6px; }
+.exp-btn { flex:1; padding:9px 0; background:var(--bg3); border:1px solid var(--border); border-radius:5px; cursor:pointer; font-family:var(--ui); font-size:.75rem; font-weight:700; letter-spacing:.08em; text-align:center; text-transform:uppercase; transition:all .15s; }
+.exp-btn.txt{color:var(--green);} .exp-btn.txt:hover{border-color:var(--green);}
+.exp-btn.csv{color:var(--blue);}  .exp-btn.csv:hover{border-color:var(--blue);}
+.exp-btn.srt{color:var(--acc);}   .exp-btn.srt:hover{border-color:var(--acc);}
+
+/* Toast */
+#toast { position:fixed; bottom:60px; left:50%; transform:translateX(-50%) translateY(20px); background:rgba(0,0,0,.9); border:1px solid var(--border); padding:8px 18px; border-radius:5px; font-family:var(--mono); font-size:.75rem; color:var(--text); opacity:0; transition:all .3s; pointer-events:none; z-index:999; white-space:nowrap; }
+#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* ═══ HELP BUTTON ═══ */
+#help-btn {
+  display:flex; align-items:center; gap:5px;
+  padding:5px 12px; height:28px;
+  background:rgba(64,192,240,.1); border:1px solid rgba(64,192,240,.35); border-radius:3px;
+  cursor:pointer; color:var(--blue);
+  font-family:var(--ui); font-size:.75rem; font-weight:700;
+  letter-spacing:.08em; text-transform:uppercase; white-space:nowrap;
+  transition:all .15s; flex-shrink:0;
+}
+#help-btn:hover { background:rgba(64,192,240,.22); border-color:var(--blue); }
+
+/* ═══ HELP MODAL ═══ */
+#help-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.75);
+  display:flex; align-items:center; justify-content:center;
+  z-index:2000; opacity:0; pointer-events:none; transition:opacity .25s;
+}
+#help-overlay.show { opacity:1; pointer-events:auto; }
+#help-modal {
+  background:var(--panel); border:1px solid rgba(64,192,240,.3);
+  border-radius:10px; width:min(640px,94vw); max-height:82vh;
+  display:flex; flex-direction:column;
+  box-shadow:0 8px 48px rgba(0,0,0,.7);
+  transform:translateY(16px); transition:transform .25s;
+}
+#help-overlay.show #help-modal { transform:translateY(0); }
+#help-modal-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 20px 12px; border-bottom:1px solid var(--border); flex-shrink:0;
+}
+#help-modal-title {
+  font-family:var(--ui); font-weight:900; font-size:1rem;
+  letter-spacing:.18em; text-transform:uppercase; color:var(--blue);
+}
+#help-modal-close {
+  cursor:pointer; color:var(--muted); font-size:1.2rem;
+  padding:4px 8px; border-radius:3px; transition:color .15s;
+}
+#help-modal-close:hover { color:var(--text); }
+#help-modal-body {
+  overflow-y:auto; padding:20px 24px 24px;
+  scrollbar-width:thin; scrollbar-color:var(--border) transparent;
+}
+.h-section { margin-bottom:22px; }
+.h-section-title {
+  font-family:var(--ui); font-weight:700; font-size:.78rem;
+  letter-spacing:.15em; text-transform:uppercase;
+  color:var(--acc); margin-bottom:10px;
+  padding-bottom:5px; border-bottom:1px solid rgba(240,192,64,.2);
+}
+.h-table { width:100%; border-collapse:collapse; }
+.h-table th {
+  font-family:var(--ui); font-size:.68rem; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--muted);
+  padding:5px 10px; text-align:left; border-bottom:1px solid var(--border);
+}
+.h-table td {
+  font-family:var(--body); font-size:.8rem; color:var(--text);
+  padding:7px 10px; border-bottom:1px solid rgba(255,255,255,.04); line-height:1.5;
+  vertical-align:top;
+}
+.h-table tr:last-child td { border-bottom:none; }
+.h-table td:first-child { font-family:var(--mono); font-size:.75rem; color:var(--blue); white-space:nowrap; width:1%; padding-right:16px; }
+.h-key {
+  display:inline-block; background:var(--bg3); border:1px solid rgba(255,255,255,.2);
+  border-radius:3px; font-family:var(--mono); font-size:.72rem; color:var(--acc);
+  padding:1px 7px; margin:1px; white-space:nowrap;
+}
+.h-note {
+  font-family:var(--body); font-size:.75rem; color:var(--muted);
+  background:rgba(255,255,255,.03); border:1px solid var(--border);
+  border-radius:5px; padding:10px 14px; line-height:1.7;
+}
+.h-note strong { color:var(--acc); font-weight:600; }
+
+
+[data-tip]{position:relative;}
+[data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:rgba(0,0,0,.92);color:var(--text);font-family:var(--mono);font-size:.6rem;padding:4px 8px;border-radius:3px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;z-index:1000;border:1px solid var(--border);}
+[data-tip]:hover::after{opacity:1;}
+</style>
+</head>
+<body tabindex="0" style="outline:none;">
+<div id="app">
+
+  <div id="topbar">
+    <div class="logo">▶ VideoProof</div>
+    <div class="tsep"></div>
+    <button id="open-btn">📂 動画を開く</button>
+    <span id="file-name">ファイルを選択してください…</span>
+    <button id="btn-clear-all">🗑 マーカー一括削除</button>
+    <span id="res-badge">--×--</span>
+    <div id="help-btn">❓ 使い方</div>
+    <div id="cpanel-tog" data-tip="コメント一覧を開く"><span id="cbadge">0</span></div>
+  </div>
+
+  <div id="video-seek-area">
+    <div id="video-area">
+      <div id="dropzone">
+        <div class="dz-icon">🎬</div>
+        <div class="dz-text">動画ファイルをドロップ</div>
+        <div class="dz-sub" style="margin-top:6px;">または「動画を開く」ボタンで選択</div>
+        <div class="dz-sub" style="margin-top:4px;color:#1a1a2a;">MP4 / MOV / AVI / MKV / WebM</div>
+        <div class="dz-sub" style="margin-top:14px;color:#282838;font-size:.6rem;">クリック=再生停止 ／ ダブルクリック=マーカー追加 ／ マーカー上でダブルクリック=削除</div>
+      </div>
+      <video id="main-video" playsinline></video>
+      <div id="markers-ov"></div>
+      <div id="tc-overlay">00:00:00:00</div>
+      <div id="tc-df-badge">NDF</div>
+    </div>
+    <div id="seekbar-row">
+      <div id="seek-track">
+        <div id="seek-bg"></div>
+        <div id="seek-fill"></div>
+        <div id="seek-thumb"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="bottom-bar">
+
+    <div class="jog-wrap">
+      <canvas class="jog-canvas" id="jog-L" width="140" height="140"></canvas>
+      <div class="jog-overlay" id="jog-L-overlay"></div>
+    </div>
+
+    <div id="middle-area">
+
+      <div id="ctrl-row1">
+        
+        <div class="ctrl-block col-left">
+          <span class="vol-lbl">0</span>
+          <input type="range" id="vol-slider" min="0" max="1" step="0.01" value="0.5">
+          <span class="vol-lbl">10</span>
+        </div>
+
+        <div class="ctrl-block col-center">
+          <div class="btn-unit">
+            <span class="btn-lbl">10戻</span>
+            <div class="btn" id="btn-prev10" data-tip="10フレーム戻る (Shift+←)"><span>◀</span><span>◀</span></div>
+          </div>
+          <div class="btn-unit">
+            <span class="btn-lbl">1戻</span>
+            <div class="btn" id="btn-prev" data-tip="1フレーム戻る (←)">◀|</div>
+          </div>
+          <div class="btn-unit">
+            <span class="btn-lbl">逆再生</span>
+            <div class="btn rev-btn" id="btn-revplay" data-tip="逆再生 / 停止 (R)">◀</div>
+          </div>
+          <div class="btn-unit">
+            <span class="btn-lbl">再生</span>
+            <div class="btn play-btn" id="btn-play" data-tip="再生 / 停止 [Space]">▶</div>
+          </div>
+          <div class="btn-unit">
+            <span class="btn-lbl">1進</span>
+            <div class="btn" id="btn-next" data-tip="1フレーム進む (→)">|▶</div>
+          </div>
+          <div class="btn-unit">
+            <span class="btn-lbl">10進</span>
+            <div class="btn" id="btn-next10" data-tip="10フレーム進む (Shift+→)"><span>▶</span><span>▶</span></div>
+          </div>
+        </div>
+
+        <div class="ctrl-block col-right">
+          <div id="mk-jump-prev" data-tip="前のマーク">◀</div>
+          <div id="mk-jump-label">M — / —</div>
+          <div id="mk-jump-next" data-tip="次のマーク">▶</div>
+        </div>
+
+      </div>
+
+      <div id="ctrl-row2">
+        
+        <div class="ctrl-block col-left">
+          <span class="lbl">速度</span>
+          <div class="spd-btn" id="spd-dn" data-tip="-0.5x">－</div>
+          <span id="spd-val">1x</span>
+          <div class="spd-btn" id="spd-up" data-tip="+0.5x">＋</div>
+        </div>
+
+        <div class="ctrl-block col-center">
+          <div class="spd-pre" data-s="0.5">0.5×</div>
+          <div class="spd-pre" data-s="1">1×</div>
+          <div class="spd-pre" data-s="2">2×</div>
+          <div class="spd-pre" data-s="4">4×</div>
+          <div class="spd-pre" data-s="6">6×</div>
+          <div class="spd-pre" data-s="10">10×</div>
+        </div>
+
+        <div class="ctrl-block col-right">
+          <div id="btn-mute" data-tip="ミュート (M)">🔊</div>
+          <div id="export-btn" data-tip="書き出し">⬇ 書き出し</div>
+        </div>
+
+      </div>
+
+      <div id="sel-badge">
+        <span id="badge-text">M1 にコメント追加中</span>
+        <span style="cursor:pointer;color:var(--muted);font-size:.8rem;" id="badge-clear">✕</span>
+      </div>
+      <div id="comment-row">
+        <input type="text" id="comment-input" placeholder="コメント入力… (Enterで追加)">
+        <div id="btn-voice" data-tip="音声入力">🎤 音声</div>
+      </div>
+
+    </div><div class="jog-wrap">
+      <canvas class="jog-canvas" id="jog-R" width="140" height="140"></canvas>
+      <div class="jog-overlay" id="jog-R-overlay"></div>
+    </div>
+
+  </div></div><div id="cpanel">
+  <div id="cph">
+    <span id="cph-title">⬇ 書き出し</span>
+    <span id="cph-close">✕</span>
+  </div>
+  <div id="clist"></div>
+  <div id="cpanel-export">
+    <div class="lbl" style="padding:4px 2px 6px;color:rgba(255,255,255,.22);">形式を選択して書き出し</div>
+    <div class="exp-row">
+      <div class="exp-btn txt" id="exp-txt">📄 TXT</div>
+      <div class="exp-btn csv" id="exp-csv">📊 CSV</div>
+      <div class="exp-btn srt" id="exp-srt">🎬 SRT</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ HELP MODAL ═══ -->
+<div id="help-overlay">
+  <div id="help-modal">
+    <div id="help-modal-header">
+      <span id="help-modal-title">▶ VideoProofChecker — 使い方</span>
+      <span id="help-modal-close">✕</span>
+    </div>
+    <div id="help-modal-body">
+
+      <div class="h-section">
+        <div class="h-section-title">🎬 基本操作</div>
+        <table class="h-table">
+          <tr><th>操作</th><th>方法</th></tr>
+          <tr><td>動画を開く</td><td>上部「📂 動画を開く」ボタンをクリック、またはファイルを画面にドラッグ＆ドロップ</td></tr>
+          <tr><td>再生 / 停止</td><td>▶ ボタン、または動画をクリック、またはキー <span class="h-key">Space</span></td></tr>
+          <tr><td>逆再生 / 停止</td><td>◀ ボタン、またはキー <span class="h-key">R</span></td></tr>
+          <tr><td>シークバー</td><td>下部の赤いバーをクリック・ドラッグで任意の位置へ移動</td></tr>
+        </table>
+      </div>
+
+      <div class="h-section">
+        <div class="h-section-title">⌨️ キーボードショートカット</div>
+        <table class="h-table">
+          <tr><th>キー</th><th>動作</th></tr>
+          <tr><td><span class="h-key">Space</span></td><td>再生 / 停止</td></tr>
+          <tr><td><span class="h-key">R</span></td><td>逆再生 / 停止</td></tr>
+          <tr><td><span class="h-key">←</span></td><td>1フレーム戻る</td></tr>
+          <tr><td><span class="h-key">→</span></td><td>1フレーム進む</td></tr>
+          <tr><td><span class="h-key">Shift</span> + <span class="h-key">←</span></td><td>10フレーム戻る</td></tr>
+          <tr><td><span class="h-key">Shift</span> + <span class="h-key">→</span></td><td>10フレーム進む</td></tr>
+          <tr><td><span class="h-key">↑</span></td><td>再生速度を +0.5x アップ</td></tr>
+          <tr><td><span class="h-key">↓</span></td><td>再生速度を −0.5x ダウン</td></tr>
+          <tr><td><span class="h-key">M</span></td><td>ミュート / ミュート解除</td></tr>
+        </table>
+      </div>
+
+      <div class="h-section">
+        <div class="h-section-title">🔖 マーカー操作</div>
+        <table class="h-table">
+          <tr><th>操作</th><th>方法</th></tr>
+          <tr><td>マーカーを追加</td><td>動画上でダブルクリック（現在時刻にマーカーが打たれます）</td></tr>
+          <tr><td>マーカーを削除</td><td>動画上のマーカーアイコンをダブルクリック</td></tr>
+          <tr><td>マーカーへジャンプ</td><td>シークバー上の ▲ マーカーをクリック、または上部の ◀ M ▶ ボタンで移動</td></tr>
+          <tr><td>全マーカー削除</td><td>上部「🗑 マーカー一括削除」ボタン</td></tr>
+        </table>
+      </div>
+
+      <div class="h-section">
+        <div class="h-section-title">💬 コメント入力</div>
+        <table class="h-table">
+          <tr><th>操作</th><th>方法</th></tr>
+          <tr><td>コメントを追加</td><td>下部テキスト欄に入力して <span class="h-key">Enter</span></td></tr>
+          <tr><td>音声入力</td><td>「🎤 音声」ボタンを押して話す（Chrome / Edge 推奨）</td></tr>
+          <tr><td>コメント一覧を見る</td><td>右上の丸ボタン（数字バッジ）をクリック</td></tr>
+          <tr><td>コメントを削除</td><td>一覧上のコメントにマウスを乗せると右上に ✕ が表示される</td></tr>
+        </table>
+      </div>
+
+      <div class="h-section">
+        <div class="h-section-title">⬇️ 書き出し</div>
+        <table class="h-table">
+          <tr><th>形式</th><th>内容</th></tr>
+          <tr><td>📄 TXT</td><td>タイムコード付きのテキストレポート</td></tr>
+          <tr><td>📊 CSV</td><td>Excelなどで開ける表形式データ</td></tr>
+          <tr><td>🎬 SRT</td><td>動画編集ソフトで使える字幕ファイル</td></tr>
+        </table>
+        <p style="margin-top:8px;font-size:.75rem;color:var(--muted);">「⬇ 書き出し」ボタンまたは右上パネルから出力できます</p>
+      </div>
+
+      <div class="h-section">
+        <div class="h-section-title">⚙️ その他</div>
+        <div class="h-note">
+          <strong>ジョグダイヤル：</strong>左右の丸いダイヤルをドラッグするとフレーム単位でコマ送り・戻しができます。<br>
+          <strong>速度調整：</strong>0.5x〜10x まで対応。ボタンまたは ↑↓ キーで変更できます。<br>
+          <strong>タイムコード：</strong>右上のタイムコード表示はドラッグで移動できます。<br>
+          <strong>ボリューム記憶：</strong>設定したボリュームは次回起動時も引き継がれます。<br>
+          <strong>対応ブラウザ：</strong>Chrome / Edge 推奨。Safari は動画再生に一部制限あり。
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════
+let fps      = 30;
+let dfMode   = false;          
+let speed    = 1.0;
+let isMuted  = false;
+let isDragSeek = false;
+let markers  = [];             
+let selMkId  = null;
+let mkCount  = 0;
+
+let revPlaying = false;
+let revRafId   = null;
+let revLastTs  = null;
+
+const FRAME  = () => 1 / fps;
+const MK_RNG = () => FRAME() * 1.5;
+const $      = id => document.getElementById(id);
+
+const vid        = $('main-video');
+const dropzone   = $('dropzone');
+const fileEl     = $('file-name');
+const tcOverlay  = $('tc-overlay');
+const tcDfBadge  = $('tc-df-badge');
+const resBadge   = $('res-badge');
+const openBtn    = $('open-btn');
+const btnPrev10  = $('btn-prev10');
+const btnPrev    = $('btn-prev');
+const btnRevPlay = $('btn-revplay');
+const btnPlay    = $('btn-play');
+const btnNext    = $('btn-next');
+const btnNext10  = $('btn-next10');
+const spdVal     = $('spd-val');
+const spdUp      = $('spd-up');
+const spdDn      = $('spd-dn');
+const btnMute    = $('btn-mute');
+const seekTrack  = $('seek-track');
+const seekFill   = $('seek-fill');
+const seekThumb  = $('seek-thumb');
+const commentIn  = $('comment-input');
+const btnVoice   = $('btn-voice');
+const clist      = $('clist');
+const cpanel     = $('cpanel');
+const cphClose   = $('cph-close');
+const markersOv  = $('markers-ov');
+const exportBtn  = $('export-btn');
+const expTxt     = $('exp-txt');
+const expCsv     = $('exp-csv');
+const expSrt     = $('exp-srt');
+const toast      = $('toast');
+const selBadge   = $('sel-badge');
+const badgeText  = $('badge-text');
+const badgeClear = $('badge-clear');
+const cpanelTog  = $('cpanel-tog');
+const mkBadge    = $('cbadge');    
+
+// ── Toast ──
+let toastT;
+function showToast(msg, col) {
+  toast.textContent = msg;
+  toast.style.borderColor = col || 'var(--border)';
+  toast.style.color = col || 'var(--text)';
+  toast.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => toast.classList.remove('show'), 2400);
+}
+
+// ════════════════════════════════════════════
+// JOG DIAL
+// ════════════════════════════════════════════
+class JogDial {
+  constructor(id, onFrame, onCenter, symbol) {
+    this.cv  = document.getElementById(id);
+    this.ov  = document.getElementById(id + '-overlay'); // イベント受け取り用div
+    this.ctx = this.cv.getContext('2d');
+    this.angle = 0; this.dragging = false; this.lastA = null; this.accum = 0;
+    this.onFrame  = onFrame;
+    this.onCenter = onCenter;
+    this.symbol   = symbol;
+    this.btnColor  = '#f0c040';
+    this.btnSymbol = symbol;
+    this._bind(); this._draw();
+  }
+  setState(sym, color) {
+    this.btnSymbol = sym;
+    this.btnColor  = color || '#f0c040';
+    this._draw();
+  }
+  _ang(e) {
+    const r = this.cv.getBoundingClientRect();
+    return Math.atan2(
+      (e.touches ? e.touches[0].clientY : e.clientY) - (r.top  + r.height/2),
+      (e.touches ? e.touches[0].clientX : e.clientX) - (r.left + r.width /2)
+    );
+  }
+  _inCenter(e) {
+    const r = this.cv.getBoundingClientRect();
+    const dx = (e.touches ? e.touches[0].clientX : e.clientX) - (r.left + r.width /2);
+    const dy = (e.touches ? e.touches[0].clientY : e.clientY) - (r.top  + r.height/2);
+    return Math.sqrt(dx*dx + dy*dy) < this.cv.width * 0.22;
+  }
+  _bind() {
+    const start = e => {
+      if (this._inCenter(e)) {
+        if (this.onCenter) this.onCenter();
+        return;
+      }
+      e.preventDefault(); this.dragging = true;
+      this.lastA = this._ang(e); this.accum = 0;
+    };
+    const move = e => {
+      if (!this.dragging) return; e.preventDefault();
+      const a = this._ang(e);
+      let d = a - this.lastA;
+      if (d >  Math.PI) d -= 2*Math.PI;
+      if (d < -Math.PI) d += 2*Math.PI;
+      this.angle += d; this.lastA = a; this.accum += d;
+      const pf = (2*Math.PI) / fps;
+      const frames = Math.floor(Math.abs(this.accum) / pf);
+      if (frames > 0) {
+        const sign = this.accum > 0 ? 1 : -1;
+        this.accum -= sign * frames * pf;
+        if (this.onFrame) this.onFrame(sign * frames);
+      }
+      this._draw();
+    };
+    const end = () => { this.dragging = false; };
+    // イベントは overlay div で受け取る（canvasはpointer-events:none）
+    // divはtabindexなしでフォーカスを受け取らない → 青枠が出ない
+    this.ov.addEventListener('mousedown',  e => { e.preventDefault(); start(e); });
+    this.ov.addEventListener('touchstart', e => { e.preventDefault(); start(e); }, {passive:false});
+    window.addEventListener('mousemove', move);
+    window.addEventListener('touchmove', move, {passive:false});
+    window.addEventListener('mouseup',  end);
+    window.addEventListener('touchend', end);
+  }
+  _draw() {
+    const c = this.ctx, s = this.cv.width, cx = s/2, cy = s/2, r = s/2-3;
+    c.clearRect(0,0,s,s);
+
+    const bg = c.createRadialGradient(cx*.72,cy*.68,0,cx,cy,r);
+    bg.addColorStop(0,'#2e2e42'); bg.addColorStop(1,'#0c0c18');
+    c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2); c.fillStyle=bg; c.fill();
+    c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2);
+    c.strokeStyle='rgba(200,150,12,0.5)'; c.lineWidth=2.5; c.stroke();
+
+    c.save(); c.translate(cx,cy); c.rotate(this.angle);
+    for (let i=0;i<24;i++) {
+      const a=(i/24)*Math.PI*2, maj=i%6===0, ir=r-(maj?14:8);
+      c.beginPath();
+      c.moveTo(Math.cos(a)*ir, Math.sin(a)*ir);
+      c.lineTo(Math.cos(a)*(r-2), Math.sin(a)*(r-2));
+      c.strokeStyle = maj?'rgba(200,150,12,.9)':'rgba(200,150,12,.28)';
+      c.lineWidth = maj?2.5:1.2; c.stroke();
+    }
+    c.restore();
+
+    c.save(); c.translate(cx,cy); c.rotate(this.angle);
+    c.beginPath(); c.arc(0,-r*.65,s*.052,0,Math.PI*2);
+    c.fillStyle='#c8960c'; c.shadowColor='#c8960c'; c.shadowBlur=10; c.fill();
+    c.restore();
+
+    const cr = r * 0.40;
+    c.shadowColor='rgba(0,0,0,.7)'; c.shadowBlur=12; c.shadowOffsetY=2;
+    c.beginPath(); c.arc(cx,cy,cr,0,Math.PI*2);
+    c.fillStyle = this.btnColor; c.fill();
+    c.shadowBlur=0; c.shadowOffsetY=0;
+
+    c.beginPath(); c.arc(cx,cy,cr,0,Math.PI*2);
+    c.strokeStyle='rgba(0,0,0,.5)'; c.lineWidth=3; c.stroke();
+
+    c.beginPath(); c.arc(cx,cy,cr-2,Math.PI*1.1,Math.PI*1.65);
+    c.strokeStyle='rgba(255,255,255,.3)'; c.lineWidth=2; c.stroke();
+
+    const isGold = (this.btnColor === '#f0c040' || this.btnColor === '#ffe060');
+    const symColor = isGold ? '#000' : '#fff';
+    c.fillStyle = symColor;
+    c.shadowBlur = 0;
+
+    if (this.btnSymbol === 'PAUSE') {
+      // 一時停止: 縦棒2本（▶と同じ高さ感に）
+      const bw = cr * 0.22, bh = cr * 0.85, gap = cr * 0.28;
+      const bx = cx - gap/2 - bw, by = cy - bh/2;
+      c.fillRect(bx, by, bw, bh);
+      c.fillRect(bx + bw + gap, by, bw, bh);
+    } else if (this.btnSymbol === 'STOP') {
+      // 停止: 正方形（中央に配置）
+      const sw = cr * 0.68;
+      c.fillRect(cx - sw/2, cy - sw/2, sw, sw);
+    } else {
+      // ▶ ◀ テキスト記号
+      c.font = '900 ' + Math.round(s*0.18) + 'px sans-serif';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      const offsets = {'▶':[2,0], '◀':[-2,0]};
+      const [ox, oy] = offsets[this.btnSymbol] || [0,0];
+      c.fillText(this.btnSymbol, cx+ox, cy+oy);
+    }
+
+    c.beginPath(); c.arc(cx,cy,r-2,Math.PI*1.1,Math.PI*1.65);
+    c.strokeStyle='rgba(255,255,255,.06)'; c.lineWidth=3; c.stroke();
+  }
+}
+
+const jogL = new JogDial('jog-L', n => stepFrame(n), () => toggleRevPlay(), '◀');
+const jogR = new JogDial('jog-R', n => stepFrame(n), () => togglePlay(),    '▶');
+
+// ════════════════════════════════════════════
+// FILE LOAD
+// ════════════════════════════════════════════
+function loadFile(p) {
+  let src = p;
+  if (!src.startsWith('blob:') && !src.startsWith('file:') && !src.startsWith('http'))
+    src = 'file://' + p.replace(/\\/g,'/');
+  vid.src = src; vid.style.display='block'; dropzone.style.display='none';
+  fileEl.textContent = p.split(/[/\\]/).pop();
+  vid.load(); resetAll();
+}
+function loadBlob(f) {
+  vid.src = URL.createObjectURL(f); vid.style.display='block'; dropzone.style.display='none';
+  fileEl.textContent = f.name; vid.load(); resetAll();
+}
+function resetAll() {
+  markers=[]; mkCount=0; selMkId=null;
+  stopRevPlay(); stopPlayUI(); renderAll();
+  selBadge.classList.remove('show');
+  commentIn.classList.remove('mk');
+  mkBadge.textContent='0';
+}
+
+const fileIn = document.createElement('input');
+fileIn.type='file'; fileIn.accept='video/*'; fileIn.style.display='none';
+document.body.appendChild(fileIn);
+fileIn.addEventListener('change', e => { if(e.target.files[0]) loadBlob(e.target.files[0]); });
+
+openBtn.addEventListener('click', async () => {
+  if (window.electronAPI && window.electronAPI.openFileDialog) {
+    const p = await window.electronAPI.openFileDialog();
+    if (p) loadFile(p);
+  } else { fileIn.click(); }
+});
+
+const va = $('video-area');
+va.addEventListener('dragover',  e => { e.preventDefault(); dropzone.classList.add('over'); });
+va.addEventListener('dragleave', () => dropzone.classList.remove('over'));
+va.addEventListener('drop', e => {
+  e.preventDefault(); dropzone.classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('video/')) loadBlob(f);
+});
+
+if (window.electronAPI) {
+  window.electronAPI.onOpenFile(p => loadFile(p));
+  window.electronAPI.onExport(()   => cpanel.classList.add('open'));
+  window.electronAPI.onCommand(cmd => handleCmd(cmd));
+}
+
+vid.addEventListener('loadedmetadata', () => {
+  resBadge.textContent = `${vid.videoWidth}×${vid.videoHeight}`;
+  detectFps(); updateSeek();
+});
+vid.addEventListener('timeupdate', () => { updateTC(); updateSeek(); updateMkVis(); });
+vid.addEventListener('ended', () => { stopPlayUI(); stopRevPlay(); });
+
+// ════════════════════════════════════════════
+// TIMECODE
+// ════════════════════════════════════════════
+const p2 = n => String(Math.floor(Math.abs(n))).padStart(2,'0');
+
+function fmtTC(t) {
+  const f  = Math.floor((t%1) * fps);
+  const ss = Math.floor(t) % 60;
+  const mm = Math.floor(t/60) % 60;
+  const hh = Math.floor(t/3600);
+  const sep = dfMode ? ';' : ':';
+  return `${p2(hh)}:${p2(mm)}:${p2(ss)}${sep}${p2(f)}`;
+}
+function fmtHMS(t) {
+  return `${p2(t/3600)}:${p2((t/60)%60)}:${p2(t%60)}`;
+}
+function updateTC() { tcOverlay.textContent = fmtTC(vid.currentTime); }
+
+// TCオーバーレイ ドラッグ移動
+(function(){
+  let dragging=false, ox=0, oy=0;
+  tcOverlay.addEventListener('mousedown', e => {
+    dragging=true;
+    ox = e.clientX - tcOverlay.offsetLeft;
+    oy = e.clientY - tcOverlay.offsetTop;
+    tcOverlay.style.right='auto';
+    tcDfBadge.style.right='auto';
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e => {
+    if(!dragging) return;
+    const va = document.getElementById('video-area');
+    const r = va.getBoundingClientRect();
+    const nx = Math.max(0, Math.min(r.width - tcOverlay.offsetWidth, e.clientX - r.left - ox + tcOverlay.offsetLeft - r.left));
+    const ny = Math.max(0, Math.min(r.height - tcOverlay.offsetHeight, e.clientY - r.top - oy + tcOverlay.offsetTop - r.top));
+    tcOverlay.style.left = (e.clientX - ox) + 'px';
+    tcOverlay.style.top  = (e.clientY - oy) + 'px';
+    tcDfBadge.style.left = (e.clientX - ox + 2) + 'px';
+    tcDfBadge.style.top  = (e.clientY - oy + tcOverlay.offsetHeight - 4) + 'px';
+  });
+  window.addEventListener('mouseup', () => { dragging=false; });
+})();
+
+// NDF/DF切り替え無効化
+
+(function rafTC() { updateTC(); requestAnimationFrame(rafTC); })();
+
+function detectFps() {
+  fps = 30;
+  if (!vid.requestVideoFrameCallback) return;
+  let frames=0, t0=null;
+  function sample(now, meta) {
+    if(t0===null){t0=meta.mediaTime;}
+    frames++;
+    if(frames<60 && !vid.paused){vid.requestVideoFrameCallback(sample);}
+    else if(frames>=2 && meta.mediaTime>t0){
+      const det = Math.round((frames-1)/(meta.mediaTime-t0));
+      if(det>=10&&det<=120) fps=det;
+    }
+  }
+  vid.requestVideoFrameCallback(sample);
+}
+
+// ════════════════════════════════════════════
+// PLAY / STOP
+// ════════════════════════════════════════════
+function togglePlay() {
+  if(!vid.src||vid.style.display==='none') return;
+  stopRevPlay();
+  if(vid.paused) {
+    vid.play();
+    btnPlay.innerHTML='<span class="pause-icon"><span></span><span></span></span>'; btnPlay.classList.add('act');
+    jogR.setState('PAUSE', '#e82020');
+  } else {
+    stopPlayUI();
+  }
+}
+function stopPlayUI() {
+  vid.pause();
+  btnPlay.innerHTML='▶'; btnPlay.classList.remove('act');
+  jogR.setState('▶', '#f0c040');
+}
+
+let clickTimer = null;
+va.addEventListener('click', e => {
+  if(e.target===dropzone||dropzone.contains(e.target)) return;
+  if(!vid.src||vid.style.display==='none') return;
+  clearTimeout(clickTimer);
+  clickTimer = setTimeout(() => togglePlay(), 220);
+});
+
+// ════════════════════════════════════════════
+// REVERSE PLAY
+// ════════════════════════════════════════════
+function toggleRevPlay() {
+  if(!vid.src) return;
+  revPlaying ? stopRevPlay() : startRevPlay();
+}
+function startRevPlay() {
+  stopPlayUI();
+  revPlaying=true; revLastTs=null;
+  btnRevPlay.innerHTML='<span style="display:inline-flex;align-items:center;justify-content:center;line-height:1">■</span>'; btnRevPlay.classList.add('act-blue');
+  jogL.setState('STOP', '#40c0f0');
+  revRafId = requestAnimationFrame(revStep);
+}
+function revStep(ts) {
+  if(!revPlaying) return;
+  if(revLastTs===null){revLastTs=ts; revRafId=requestAnimationFrame(revStep); return;}
+  const delta = (ts - revLastTs)/1000;
+  revLastTs = ts;
+  // フレーム単位でステップ: 1フレーム分ずつ戻すことで滑らかに見せる
+  const frameTime = 1 / fps;
+  const step = Math.max(frameTime, Math.min(delta * speed, frameTime * 3));
+  const newTime = vid.currentTime - step;
+  if(newTime <= 0){ vid.currentTime = 0; stopRevPlay(); return; }
+  // seeked イベントで次フレームを要求することでデコードを待つ
+  if(vid.readyState >= 2) {
+    vid.currentTime = newTime;
+  }
+  revRafId = requestAnimationFrame(revStep);
+}
+function stopRevPlay() {
+  revPlaying=false; revLastTs=null;
+  if(revRafId){cancelAnimationFrame(revRafId); revRafId=null;}
+  btnRevPlay.innerHTML='◀'; btnRevPlay.classList.remove('act-blue');
+  jogL.setState('◀', '#f0c040');
+}
+
+function stepFrame(n) {
+  if(!vid.src) return;
+  stopRevPlay(); stopPlayUI();
+  vid.currentTime = Math.max(0, Math.min(vid.duration||0, vid.currentTime+n*FRAME()));
+}
+
+// クリック後フォーカスを外す（Electron青枠対策）
+// mousedown で .btn のフォーカス発生を根本から防ぐ
+document.addEventListener('mousedown', function(e) {
+  // closest で span など子要素クリック時も確実に捕捉
+  if (e.target.closest && e.target.closest('.btn')) {
+    e.preventDefault();
+  }
+}, true);
+
+btnPlay.addEventListener('click',    () => { togglePlay();    btnPlay.blur(); });
+btnRevPlay.addEventListener('click', () => { toggleRevPlay(); btnRevPlay.blur(); });
+btnPrev.addEventListener('click',    () => { stepFrame(-1);   btnPrev.blur(); });
+btnNext.addEventListener('click',    () => { stepFrame(+1);   btnNext.blur(); });
+btnPrev10.addEventListener('click',  () => { stepFrame(-10);  btnPrev10.blur(); });
+btnNext10.addEventListener('click',  () => { stepFrame(+10);  btnNext10.blur(); });
+
+// ════════════════════════════════════════════
+// VOLUME SLIDER (1段目左)
+// ════════════════════════════════════════════
+const volSlider = $('vol-slider');
+function updateVolStyle(v) {
+  const pct = v * 100;
+  volSlider.style.background = `linear-gradient(to right, var(--acc) 0%, var(--acc) ${pct}%, var(--bg3) ${pct}%)`;
+}
+volSlider.addEventListener('input', () => {
+  vid.volume = volSlider.value;
+  updateVolStyle(volSlider.value);
+  if (volSlider.value > 0 && isMuted) applyMute(false);
+  try { localStorage.setItem('vc_volume', volSlider.value); } catch(e){}
+});
+// 起動時にボリューム復元（アプリ・ブラウザ共通）
+(function(){
+  let saved = 0.5;
+  try { const v = localStorage.getItem('vc_volume'); if(v !== null) saved = parseFloat(v); } catch(e){}
+  volSlider.value = saved;
+  vid.volume = saved;
+  updateVolStyle(saved);
+})();
+
+// ════════════════════════════════════════════
+// SPEED
+// ════════════════════════════════════════════
+function setSpeed(s) {
+  speed = Math.round(Math.max(0.5,Math.min(10,s))*10)/10;
+  vid.playbackRate = speed;
+  const label = speed%1===0 ? speed+'×' : speed.toFixed(1)+'×';
+  spdVal.textContent = label;
+  document.querySelectorAll('.spd-pre').forEach(el =>
+    el.classList.toggle('on', parseFloat(el.dataset.s)===speed)
+  );
+}
+spdUp.addEventListener('click', () => setSpeed(speed+0.5));
+spdDn.addEventListener('click', () => setSpeed(speed-0.5));
+document.querySelectorAll('.spd-pre').forEach(el =>
+  el.addEventListener('click', () => setSpeed(parseFloat(el.dataset.s)))
+);
+setSpeed(1.0);
+
+// ════════════════════════════════════════════
+// SEEKBAR
+// ════════════════════════════════════════════
+function updateSeek() {
+  if(!vid.duration) return;
+  const p = (vid.currentTime/vid.duration)*100;
+  seekFill.style.width = p+'%';
+  const tw = seekTrack.clientWidth-24;
+  seekThumb.style.left = (12+(p/100)*tw)+'px';
+}
+function seekTo(e) {
+  if(!vid.duration) return;
+  const r = seekTrack.getBoundingClientRect();
+  const x = Math.max(0,Math.min(r.width-24,(e.touches?e.touches[0].clientX:e.clientX)-r.left-12));
+  vid.currentTime = (x/(r.width-24))*vid.duration;
+}
+seekTrack.addEventListener('mousedown',  e=>{isDragSeek=true; seekTo(e);});
+seekTrack.addEventListener('touchstart', e=>{isDragSeek=true; seekTo(e);},{passive:false});
+window.addEventListener('mousemove', e=>{if(isDragSeek)seekTo(e);});
+window.addEventListener('touchmove', e=>{if(isDragSeek)seekTo(e);},{passive:false});
+window.addEventListener('mouseup',  ()=>isDragSeek=false);
+window.addEventListener('touchmove', ()=>isDragSeek=false);
+
+// ════════════════════════════════════════════
+// MUTE
+// ════════════════════════════════════════════
+function applyMute(v) {
+  isMuted = v; vid.muted = isMuted;
+  const icon = isMuted ? '🔇' : '🔊';
+  btnMute.innerHTML = icon; btnMute.classList.toggle('act', isMuted);
+}
+btnMute.addEventListener('click',  () => applyMute(!isMuted));
+
+// ════════════════════════════════════════════
+// マーカー一括削除
+// ════════════════════════════════════════════
+$('btn-clear-all').addEventListener('click', () => {
+  if(!markers.length){showToast('マーカーはありません','var(--muted)');return;}
+  if(!confirm(`マーカーを全件（${markers.length}件）削除しますか？`)) return;
+  markers=[]; mkCount=0; selMkId=null;
+  selBadge.classList.remove('show'); commentIn.classList.remove('mk');
+  mkBadge.textContent='0';
+  renderAll();
+  showToast('全マーカーを削除しました','var(--red)');
+});
+
+// ════════════════════════════════════════════
+// MARKERS
+// ════════════════════════════════════════════
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+vid.addEventListener('dblclick', e => {
+  clearTimeout(clickTimer);
+  const r = vid.getBoundingClientRect();
+  const xp = ((e.clientX-r.left)/r.width)*100;
+  const yp = ((e.clientY-r.top)/r.height)*100;
+  const ct = vid.currentTime;
+  const hit = markers.find(m =>
+    Math.abs(m.x-xp)<5 && Math.abs(m.y-yp)<5 && Math.abs(m.time-ct)<FRAME()*3
+  );
+  if(hit){deleteMarker(hit.id); showToast(`M${hit.num} を削除しました`,'var(--red)');}
+  else   {addMarker(xp,yp,ct);}
+});
+markersOv.addEventListener('click', e => {
+  const w = e.target.closest('.vmarker-wrap');
+  if(w){selectMarker(+w.dataset.id); e.stopPropagation();}
+});
+markersOv.addEventListener('dblclick', e => {
+  clearTimeout(clickTimer);
+  const w = e.target.closest('.vmarker-wrap');
+  if(w){
+    const id=+w.dataset.id, m=markers.find(x=>x.id===id);
+    if(m){deleteMarker(id); showToast(`M${m.num} を削除しました`,'var(--red)');}
+    e.stopPropagation();
+  }
+});
+
+function addMarker(x,y,t) {
+  mkCount++;
+  markers.push({id:Date.now(),num:mkCount,time:t,x,y,comments:[]});
+  mkBadge.textContent = markers.length;
+  renderAll();
+  showToast(`M${mkCount} を追加しました`,'var(--gold)');
+}
+function deleteMarker(id) {
+  markers = markers.filter(m=>m.id!==id);
+  if(selMkId===id){selMkId=null; selBadge.classList.remove('show'); commentIn.classList.remove('mk');}
+  mkBadge.textContent = markers.length;
+  renderAll();
+}
+function selectMarker(id) {
+  selMkId = id;
+  const m = markers.find(x=>x.id===id); if(!m) return;
+  badgeText.textContent = `M${m.num} にコメント追加中`;
+  selBadge.classList.add('show');
+  commentIn.classList.add('mk');
+  commentIn.placeholder = `M${m.num} へのコメントを入力 (Enter で追加)`;
+  commentIn.focus();
+  document.querySelectorAll('.vmarker-wrap').forEach(el =>
+    el.classList.toggle('sel', +el.dataset.id===id)
+  );
+}
+badgeClear.addEventListener('click', () => {
+  selMkId=null; selBadge.classList.remove('show'); commentIn.classList.remove('mk');
+  commentIn.placeholder='コメント入力… (Enterで追加)';
+  document.querySelectorAll('.vmarker-wrap').forEach(el=>el.classList.remove('sel'));
+});
+
+commentIn.addEventListener('keydown', e => { if(e.key==='Enter'){e.preventDefault();addComment();} });
+function addComment() {
+  const text=commentIn.value.trim(); if(!text) return;
+  const t = vid.currentTime;
+  if(selMkId!==null){
+    const m=markers.find(x=>x.id===selMkId);
+    if(m){
+      m.comments.push({id:Date.now(),text:`[M${m.num}] ${text}`,tc:fmtTC(t),hms:fmtHMS(t),time:t});
+      commentIn.value=''; renderAll();
+      mkBadge.textContent = totalComments();
+      showToast(`M${m.num} にコメントを追加`,'var(--gold)');
+      selMkId=null;
+      selBadge.classList.remove('show');
+      commentIn.classList.remove('mk');
+      commentIn.placeholder='コメント入力… (Enterで追加)';
+      document.querySelectorAll('.vmarker-wrap').forEach(el=>el.classList.remove('sel'));
+      return;
+    }
+  }
+  if(!markers.length) markers.push({id:Date.now(),num:++mkCount,time:t,x:null,y:null,comments:[]});
+  const last=markers[markers.length-1];
+  // M番号をテキストに付与してマーカー一覧と一致させる
+  const commentText = text.startsWith('[M') ? text : `[M${last.num}] ${text}`;
+  last.comments.push({id:Date.now(),text:commentText,tc:fmtTC(t),hms:fmtHMS(t),time:t});
+  commentIn.value='';
+  // selMkId を確実にリセット
+  selMkId=null;
+  selBadge.classList.remove('show');
+  commentIn.classList.remove('mk');
+  commentIn.placeholder='コメント入力… (Enterで追加)';
+  document.querySelectorAll('.vmarker-wrap').forEach(el=>el.classList.remove('sel'));
+  renderAll();
+  mkBadge.textContent = totalComments();
+}
+
+function totalComments() {
+  return markers.reduce((s,m)=>s+m.comments.length,0);
+}
+
+function updateMkVis() {
+  const ct=vid.currentTime;
+  document.querySelectorAll('.vmarker-wrap').forEach(el => {
+    const m=markers.find(x=>x.id===+el.dataset.id);
+    if(m&&m.x!==null) el.classList.toggle('visible', Math.abs(m.time-ct)<=MK_RNG());
+  });
+}
+
+function renderAll() { renderVMarkers(); renderTL(); renderCPanel(); }
+
+function renderVMarkers() {
+  markersOv.innerHTML='';
+  markers.filter(m=>m.x!==null).forEach(m=>{
+    const w=document.createElement('div');
+    w.className='vmarker-wrap'; w.dataset.id=m.id;
+    w.style.left=m.x+'%'; w.style.top=m.y+'%';
+    if(selMkId===m.id) w.classList.add('sel');
+    const tip=m.comments.length ? m.comments.map(c=>esc(c.text)).join('<br>') : '（コメントなし）';
+    w.innerHTML=`<div class="vmarker-body"><div class="vmarker-num">M${m.num}</div><div class="vmarker-tri"></div></div><div class="vmarker-tip">${fmtHMS(m.time)}<br>${tip}</div>`;
+    markersOv.appendChild(w);
+  });
+  updateMkVis();
+}
+
+function renderTL() {
+  document.querySelectorAll('.tlm').forEach(el=>el.remove());
+  if(!vid.duration) return;
+  const tw=seekTrack.clientWidth-24;
+  markers.forEach(m=>{
+    if(m.x===null) return;
+    const px=12+(m.time/vid.duration)*tw;
+    const w=document.createElement('div');
+    w.className='tlm'; w.style.left=px+'px'; w.title=`M${m.num}: ${fmtHMS(m.time)}`;
+    w.innerHTML=`<div class="tlm-tri"></div><div class="tlm-num">M${m.num}</div>`;
+    w.addEventListener('click',e=>{e.stopPropagation();vid.currentTime=m.time;selectMarker(m.id);});
+    seekTrack.appendChild(w);
+  });
+}
+
+// ════════════════════════════════════════════
+// COMMENT PANEL & MARK JUMP
+// ════════════════════════════════════════════
+let mkJumpIdx = -1;  
+
+function renderCPanel() {
+  clist.innerHTML = '';
+  if(!markers.length) { updateJumpLabel(); return; }
+
+  markers.forEach(m => {
+    if(m.comments.length > 0) {
+      m.comments.forEach(c => {
+        const el = document.createElement('div');
+        el.className = 'ci'; el.dataset.cid = c.id;
+        el.innerHTML = `
+          <div class="ci-tc">${c.tc} <span style="color:var(--gold);font-size:.62rem;">M${m.num}</span></div>
+          <div class="ci-txt">${esc(c.text)}</div>
+          <div class="ci-del" data-del="${c.id}">✕</div>`;
+        el.addEventListener('click', ev => {
+          if(ev.target.dataset.del){ deleteComment(+ev.target.dataset.del); return; }
+          if(vid.src){ vid.currentTime=m.time; selectMarker(m.id); }
+        });
+        clist.appendChild(el);
+      });
+    } else {
+      const el = document.createElement('div');
+      el.className = 'ci ci-empty';
+      el.innerHTML = `
+        <div class="ci-tc">${fmtHMS(m.time)} <span style="color:var(--gold);font-size:.62rem;">M${m.num}</span></div>
+        <input class="ci-empty-input" placeholder="コメントを入力して Enter" data-mid="${m.id}">`;
+      const inp = el.querySelector('.ci-empty-input');
+      inp.addEventListener('keydown', ev => {
+        if(ev.key === 'Enter') {
+          const text = inp.value.trim();
+          if(!text) return;
+          const t = m.time;
+          m.comments.push({id:Date.now(), text:`[M${m.num}] ${text}`, tc:fmtTC(t), hms:fmtHMS(t), time:t});
+          mkBadge.textContent = totalComments();
+          renderAll();
+          showToast(`M${m.num} にコメントを追加`, 'var(--gold)');
+        }
+      });
+      inp.addEventListener('click', ev => ev.stopPropagation());
+      el.addEventListener('click', () => { if(vid.src){ vid.currentTime=m.time; } });
+      clist.appendChild(el);
+    }
+  });
+
+  updateJumpLabel();
+}
+
+function updateJumpLabel() {
+  const lbl = $('mk-jump-label');
+  if(!markers.length){ lbl.textContent = 'M — / —'; return; }
+  const idx = mkJumpIdx < 0 ? 0 : Math.min(mkJumpIdx, markers.length-1);
+  lbl.textContent = `M${markers[idx].num} / ${markers.length}`;
+}
+$('mk-jump-prev').addEventListener('click', () => {
+  if(!markers.length) return;
+  mkJumpIdx = mkJumpIdx <= 0 ? markers.length-1 : mkJumpIdx-1;
+  if(vid.src) vid.currentTime = markers[mkJumpIdx].time;
+  selectMarker(markers[mkJumpIdx].id);
+  updateJumpLabel();
+});
+$('mk-jump-next').addEventListener('click', () => {
+  if(!markers.length) return;
+  mkJumpIdx = (mkJumpIdx+1) % markers.length;
+  if(vid.src) vid.currentTime = markers[mkJumpIdx].time;
+  selectMarker(markers[mkJumpIdx].id);
+  updateJumpLabel();
+});
+$('mk-jump-label').addEventListener('click', () => {
+  if(!markers.length) return;
+  const idx = mkJumpIdx < 0 ? 0 : mkJumpIdx;
+  if(vid.src) vid.currentTime = markers[idx].time;
+  selectMarker(markers[idx].id);
+});
+function deleteComment(cid) {
+  markers.forEach(m=>{m.comments=m.comments.filter(c=>c.id!==cid);});
+  mkBadge.textContent = totalComments();
+  renderAll();
+}
+
+// ════════════════════════════════════════════
+// EXPORT
+// ════════════════════════════════════════════
+function allC() {
+  return markers.flatMap(m=>m.comments.map(c=>({...c,markerNum:m.num,mTime:m.time,mHms:fmtHMS(m.time)})));
+}
+function buildTxt() {
+  const all=allC();
+  return ['VideoProofChecker - Comment Report','================================',
+    `File: ${fileEl.textContent}`,`Exported: ${new Date().toLocaleString('ja-JP')}`,
+    `Markers: ${markers.length}  Comments: ${all.length}`,'',
+    'Time      Comment','─────────────────────────────────',
+    ...all.map(c=>`${c.hms}  ${c.text}`)].join('\r\n');
+}
+function buildCsv() {
+  const all=allC();
+  return ['\uFEFF'+['No','Time','Marker','Comment'].map(v=>`"${v}"`).join(','),
+    ...all.map((c,i)=>[i+1,`"${c.hms}"`,`"M${c.markerNum}"`,`"${c.text.replace(/"/g,'""')}"`].join(','))
+  ].join('\r\n');
+}
+function buildSrt() {
+  return allC().map((c,i)=>{
+    const s=c.time||0,e=Math.min(vid.duration||s+2,s+2);
+    const f=t=>{const ms=Math.floor((t%1)*1000),ss=Math.floor(t)%60,mm=Math.floor(t/60)%60,hh=Math.floor(t/3600);return `${p2(hh)}:${p2(mm)}:${p2(ss)},${String(ms).padStart(3,'0')}`;};
+    return `${i+1}\n${f(s)} --> ${f(e)}\n${c.text}\n`;
+  }).join('\n');
+}
+async function doExport(fmt) {
+  const all=allC();
+  if(!all.length){showToast('コメントがありません','var(--red)');return;}
+  const base=fileEl.textContent.replace(/\.[^.]+$/,'')||'review';
+  let content,defaultName;
+  if(fmt==='txt'){content=buildTxt();defaultName=base+'_comments.txt';}
+  if(fmt==='csv'){content=buildCsv();defaultName=base+'_comments.csv';}
+  if(fmt==='srt'){content=buildSrt();defaultName=base+'_comments.srt';}
+  if(window.electronAPI){
+    const r=await window.electronAPI.saveFile({defaultName,content});
+    if(r.success) showToast(`✅ ${r.filePath.split(/[/\\]/).pop()}`,'var(--green)');
+  } else {
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([content],{type:'text/plain;charset=utf-8'}));
+    a.download=defaultName; a.click();
+    showToast(`✅ ${defaultName}`,'var(--green)');
+  }
+}
+exportBtn.addEventListener('click', ()=>cpanel.classList.add('open'));
+cpanelTog.addEventListener('click', ()=>cpanel.classList.toggle('open'));
+expTxt.addEventListener('click', ()=>doExport('txt'));
+expCsv.addEventListener('click', ()=>doExport('csv'));
+expSrt.addEventListener('click', ()=>doExport('srt'));
+cphClose.addEventListener('click', ()=>cpanel.classList.remove('open'));
+
+// ════════════════════════════════════════════
+// VOICE INPUT
+// ════════════════════════════════════════════
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let recognition=null, isRecV=false;
+if(SR){
+  recognition=new SR();
+  recognition.lang='ja-JP'; recognition.continuous=false; recognition.interimResults=false;
+  recognition.onresult=e=>{commentIn.value+=(commentIn.value?' ':'')+e.results[0][0].transcript;stopRec();};
+  recognition.onerror=()=>{stopRec();showToast('音声認識失敗','var(--red)');};
+  recognition.onend=()=>{if(isRecV)stopRec();};
+}else{btnVoice.style.opacity='.35';}
+function stopRec(){isRecV=false;btnVoice.classList.remove('on');btnVoice.innerHTML='🎤 音声';}
+btnVoice.addEventListener('click',()=>{
+  if(!SR) return;
+  if(isRecV){recognition.stop();stopRec();}
+  else{recognition.start();isRecV=true;btnVoice.classList.add('on');btnVoice.innerHTML='⏹ 停止';}
+});
+
+// ════════════════════════════════════════════
+// KEYBOARD
+// ════════════════════════════════════════════
+function handleCmd(cmd){
+  switch(cmd){
+    case 'toggle-play': togglePlay();       break;
+    case 'toggle-rev':  toggleRevPlay();    break;
+    case 'prev-frame':  stepFrame(-1);      break;
+    case 'next-frame':  stepFrame(+1);      break;
+    case 'prev-10':     stepFrame(-10);     break;
+    case 'next-10':     stepFrame(+10);     break;
+    case 'speed-up':    setSpeed(speed+0.5);break;
+    case 'speed-dn':    setSpeed(speed-0.5);break;
+    case 'speed-1':     setSpeed(1.0);      break;
+  }
+}
+document.addEventListener('keydown', e=>{
+  if(e.target===commentIn) return;
+  if(e.ctrlKey||e.metaKey) return;
+  switch(e.key){
+    case ' ':           e.preventDefault(); togglePlay(); break;
+    case 'r':case 'R':  toggleRevPlay(); break;
+    case 'ArrowLeft':   e.preventDefault(); e.shiftKey?stepFrame(-10):stepFrame(-1); break;
+    case 'ArrowRight':  e.preventDefault(); e.shiftKey?stepFrame(+10):stepFrame(+1); break;
+    case 'ArrowUp':     e.preventDefault(); setSpeed(speed+0.5); break;
+    case 'ArrowDown':   e.preventDefault(); setSpeed(speed-0.5); break;
+    case 'm':case 'M':  applyMute(!isMuted); break;
+  }
+});
+
+// ══════════════════════════════════════════
+// Electron 青枠完全除去
+// requestAnimationFrame で毎フレーム監視
+// INPUT/TEXTAREA 以外がフォーカスを持ったら即blur
+// これはrenderer本体で動くため確実に動作する
+// ══════════════════════════════════════════
+// ════════════════════════════════════════════
+// SERVICE WORKER 登録 (PWA)
+// ════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(() => console.log('[PWA] Service Worker 登録完了'))
+      .catch(err => console.warn('[PWA] SW登録失敗:', err));
+  });
+}
+
+
+const helpBtn     = $('help-btn');
+const helpOverlay = $('help-overlay');
+const helpClose   = $('help-modal-close');
+
+function openHelp()  { helpOverlay.classList.add('show'); }
+function closeHelp() { helpOverlay.classList.remove('show'); }
+
+helpBtn.addEventListener('click', openHelp);
+helpClose.addEventListener('click', closeHelp);
+helpOverlay.addEventListener('click', e => { if(e.target === helpOverlay) closeHelp(); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeHelp(); });
+
+
+
+// 【1段目】mousedown で INPUT/TEXTAREA 以外のフォーカス発生を根本から防ぐ
+// ※ mousedown.preventDefault() は click イベントを妨げない
+document.addEventListener('mousedown', function(e) {
+  var el = e.target;
+  // DOM を上にたどって確認（span など子要素対策）
+  while (el && el !== document) {
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') return;
+    el = el.parentElement;
+  }
+  e.preventDefault();
+}, true);
+
+// 【2段目】rAF で毎フレーム監視してblur
+(function removeFocusRing() {
+  const el = document.activeElement;
+  if (el &&
+      el !== document.body &&
+      el !== document.documentElement &&
+      el.tagName !== 'INPUT' &&
+      el.tagName !== 'TEXTAREA') {
+    el.blur();
+  }
+  requestAnimationFrame(removeFocusRing);
+})();
+</script>
