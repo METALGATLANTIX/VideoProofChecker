@@ -232,7 +232,7 @@ html,body {
 .btn.rev-btn:hover { border-color:var(--border); color:var(--blue); }
 .btn.rev-btn.act-blue { color:#fff; }
 
-#btn-prev10, #btn-next10 { font-size:.85rem; line-height:1; display:flex; align-items:center; justify-content:center; gap:1px; position:relative; top:1px; }
+#btn-prev10, #btn-next10 { font-size:.85rem; line-height:1; display:flex; align-items:center; justify-content:center; gap:1px; }
 .csep { width:1px; height:28px; background:var(--border); flex-shrink:0; align-self:center; }
 
 /* ボリュームバー */
@@ -1611,21 +1611,44 @@ if(SR && !isSafari){
   recognition.onresult=e=>{commentIn.value+=(commentIn.value?' ':'')+e.results[0][0].transcript;stopRec();};
   recognition.onerror=e=>{
     stopRec();
-    if(e.error==='not-allowed') showToast('マイクの許可が必要です','var(--red)');
-    else if(e.error==='network') showToast('音声認識にはネット接続が必要です','var(--red)');
-    else showToast('音声認識エラー: '+e.error,'var(--red)');
+    if(e.error==='not-allowed')
+      showToast('設定からマイクの許可をONにしてください','var(--red)');
+    else if(e.error==='network')
+      showToast('音声認識にはネット接続が必要です','var(--red)');
+    else
+      showToast('音声認識エラー: '+e.error,'var(--red)');
   };
   recognition.onend=()=>{if(isRecV)stopRec();};
 }
 function stopRec(){isRecV=false;btnVoice.classList.remove('on');btnVoice.innerHTML='🎤 音声';}
+
+// マイク許可を取得してから録音開始
+async function startVoice() {
+  try {
+    // マイク許可ダイアログを自動表示
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+    // 許可OK → 録音開始
+    isRecV=true;
+    btnVoice.classList.add('on');
+    btnVoice.innerHTML='⏹ 停止';
+    recognition.start();
+  } catch(err) {
+    stopRec();
+    if(err.name==='NotAllowedError' || err.name==='PermissionDeniedError')
+      showToast('設定からマイクの許可をONにしてください','var(--red)');
+    else
+      showToast('マイクにアクセスできません','var(--red)');
+  }
+}
+
 btnVoice.addEventListener('click',()=>{
   // Safari の場合はメッセージを表示して終了
   if(isSafari || !SR){
     showToast('音声入力はChrome / Edgeをご使用ください','var(--blue)');
     return;
   }
-  if(isRecV){recognition.stop();stopRec();}
-  else{recognition.start();isRecV=true;btnVoice.classList.add('on');btnVoice.innerHTML='⏹ 停止';}
+  if(isRecV){ recognition.stop(); stopRec(); }
+  else { startVoice(); }
 });
 
 // ════════════════════════════════════════════
