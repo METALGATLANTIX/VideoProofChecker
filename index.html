@@ -418,6 +418,24 @@ html,body {
 #toast { position:fixed; bottom:60px; left:50%; transform:translateX(-50%) translateY(20px); background:rgba(0,0,0,.9); border:1px solid var(--border); padding:8px 18px; border-radius:5px; font-family:var(--mono); font-size:.75rem; color:var(--text); opacity:0; transition:all .3s; pointer-events:none; z-index:999; white-space:nowrap; }
 #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 
+/* ═══ マイク許可ポップアップ ═══ */
+#mic-popup {
+  position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+  background:var(--panel); border:1px solid var(--acc);
+  border-radius:8px; padding:12px 16px; z-index:1000;
+  font-family:var(--body); font-size:.78rem; color:var(--text);
+  box-shadow:0 4px 20px rgba(0,0,0,.6); max-width:280px; text-align:center;
+  display:none;
+}
+#mic-popup.show { display:block; }
+#mic-popup-title { color:var(--acc); font-weight:700; font-size:.82rem; margin-bottom:6px; }
+#mic-popup-msg { color:var(--muted); font-size:.72rem; line-height:1.6; margin-bottom:10px; }
+#mic-popup-close {
+  padding:4px 16px; background:var(--acc); color:#000;
+  border:none; border-radius:4px; cursor:pointer;
+  font-family:var(--ui); font-weight:700; font-size:.75rem;
+}
+
 /* ═══ HELP BUTTON ═══ */
 #help-btn {
   display:flex; align-items:center; gap:5px;
@@ -788,6 +806,11 @@ html,body {
   </div>
 </div>
 
+<div id="mic-popup">
+  <div id="mic-popup-title">🎤 マイクの許可が必要です</div>
+  <div id="mic-popup-msg">ブラウザの設定からマイクを許可してください。<br>アドレスバー左の 🔒 → マイク → 許可</div>
+  <button id="mic-popup-close">閉じる</button>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -1075,52 +1098,57 @@ function fmtHMS(t) {
 }
 function updateTC() { tcOverlay.textContent = fmtTC(vid.currentTime); }
 
-// TCオーバーレイ ドラッグ移動（PC：即ドラッグ／スマホ：ワンタップで移動モードON→ドラッグ）
+// TCオーバーレイ ドラッグ移動（PC：即ドラッグ／スマホ：タップで光る→ドラッグ）
 (function(){
-  let dragging=false, moveMode=false, ox=0, oy=0;
+  let dragging=false, ox=0, oy=0;
 
-  function enterMoveMode() {
-    moveMode=true;
-    tcOverlay.classList.add('tc-holding');
-    showToast('タイムコード移動モードON　もう一度タップで解除','var(--acc)');
-  }
-  function exitMoveMode() {
-    moveMode=false; dragging=false;
-    tcOverlay.classList.remove('tc-holding','tc-dragging');
-  }
   function startDrag(clientX, clientY) {
-    dragging=true;
-    tcOverlay.classList.add('tc-dragging');
-    ox = clientX - tcOverlay.offsetLeft;
-    oy = clientY - tcOverlay.offsetTop;
-    tcOverlay.style.right='auto';
-    tcDfBadge.style.right='auto';
+    // まず現在の画面上の位置を記録（right指定のままでも正確に取れる）
+    const tcRect  = tcOverlay.getBoundingClientRect();
+    const vaRect  = document.getElementById('video-area').getBoundingClientRect();
+    // left/topを親要素（video-area）基準で設定してからrightをautoに
+    const leftVal = tcRect.left - vaRect.left;
+    const topVal  = tcRect.top  - vaRect.top;
+    tcOverlay.style.right  = 'auto';
+    tcDfBadge.style.right  = 'auto';
+    tcOverlay.style.left   = leftVal + 'px';
+    tcOverlay.style.top    = topVal  + 'px';
+    tcDfBadge.style.left   = (leftVal + 2) + 'px';
+    tcDfBadge.style.top    = (topVal + tcOverlay.offsetHeight - 4) + 'px';
+    // ドラッグ開始
+    dragging = true;
+    tcOverlay.classList.add('tc-holding','tc-dragging');
+    ox = clientX - vaRect.left - leftVal;
+    oy = clientY - vaRect.top  - topVal;
   }
   function doMove(clientX, clientY) {
     if(!dragging) return;
-    tcOverlay.style.left = (clientX - ox) + 'px';
-    tcOverlay.style.top  = (clientY - oy) + 'px';
-    tcDfBadge.style.left = (clientX - ox + 2) + 'px';
-    tcDfBadge.style.top  = (clientY - oy + tcOverlay.offsetHeight - 4) + 'px';
+    const vaRect = document.getElementById('video-area').getBoundingClientRect();
+    const lx = clientX - vaRect.left - ox;
+    const ly = clientY - vaRect.top  - oy;
+    tcOverlay.style.left   = lx + 'px';
+    tcOverlay.style.top    = ly + 'px';
+    tcDfBadge.style.left   = (lx + 2) + 'px';
+    tcDfBadge.style.top    = (ly + tcOverlay.offsetHeight - 4) + 'px';
   }
   function endDrag() {
-    dragging=false;
-    tcOverlay.classList.remove('tc-dragging');
+    dragging = false;
+    tcOverlay.classList.remove('tc-holding','tc-dragging');
   }
 
   // PC：mousedownで即ドラッグ
-  tcOverlay.addEventListener('mousedown', e => { startDrag(e.clientX, e.clientY); e.preventDefault(); });
+  tcOverlay.addEventListener('mousedown', e => {
+    startDrag(e.clientX, e.clientY);
+    e.preventDefault();
+  });
   window.addEventListener('mousemove', e => { doMove(e.clientX, e.clientY); });
   window.addEventListener('mouseup', endDrag);
 
-  // スマホ：ワンタップで移動モードON → ドラッグで移動 → もう一度タップで解除
+  // スマホ：touchstartで即光る＋即ドラッグ開始
+  // e.stopPropagation()で動画エリアへの再生トリガーを防ぐ
   tcOverlay.addEventListener('touchstart', e => {
-    e.stopPropagation(); // 動画エリアへのタップ伝播を防ぐ（再生しない）
-    if(!moveMode) {
-      enterMoveMode();
-    } else {
-      startDrag(e.touches[0].clientX, e.touches[0].clientY);
-    }
+    e.stopPropagation();
+    startDrag(e.touches[0].clientX, e.touches[0].clientY);
   }, {passive:true});
 
   tcOverlay.addEventListener('touchmove', e => {
@@ -1129,18 +1157,8 @@ function updateTC() { tcOverlay.textContent = fmtTC(vid.currentTime); }
     doMove(e.touches[0].clientX, e.touches[0].clientY);
   }, {passive:false});
 
-  tcOverlay.addEventListener('touchend', e => {
-    if(dragging){ endDrag(); return; }
-    // ドラッグなしのタップ → 移動モード解除
-    if(moveMode){ exitMoveMode(); }
-  });
-
-  tcOverlay.addEventListener('touchcancel', exitMoveMode);
-
-  // 動画エリアをタップしたとき移動モードを解除
-  document.getElementById('video-area').addEventListener('touchstart', e => {
-    if(moveMode && !tcOverlay.contains(e.target)) exitMoveMode();
-  }, {passive:true});
+  tcOverlay.addEventListener('touchend',    endDrag);
+  tcOverlay.addEventListener('touchcancel', endDrag);
 })();
 
 // NDF/DF切り替え無効化
@@ -1625,18 +1643,20 @@ const _ua = navigator.userAgent;
 const isChromeBrowser = /chrome|chromium|crios|edgios/i.test(_ua);
 const isSafari = /safari/i.test(_ua) && !isChromeBrowser;
 
+// マイク許可ポップアップ
+const micPopup = $('mic-popup');
+$('mic-popup-close').addEventListener('click', () => micPopup.classList.remove('show'));
+function showMicPopup() { micPopup.classList.add('show'); }
+
 if(SR && !isSafari){
   recognition=new SR();
   recognition.lang='ja-JP'; recognition.continuous=false; recognition.interimResults=false;
   recognition.onresult=e=>{commentIn.value+=(commentIn.value?' ':'')+e.results[0][0].transcript;stopRec();};
   recognition.onerror=e=>{
     stopRec();
-    if(e.error==='not-allowed')
-      showToast('設定からマイクの許可をONにしてください','var(--red)');
-    else if(e.error==='network')
-      showToast('音声認識にはネット接続が必要です','var(--red)');
-    else
-      showToast('音声認識エラー: '+e.error,'var(--red)');
+    if(e.error==='not-allowed') showMicPopup();
+    else if(e.error==='network') showToast('音声認識にはネット接続が必要です','var(--red)');
+    else showToast('音声認識エラー: '+e.error,'var(--red)');
   };
   recognition.onend=()=>{if(isRecV)stopRec();};
 }
@@ -1645,9 +1665,7 @@ function stopRec(){isRecV=false;btnVoice.classList.remove('on');btnVoice.innerHT
 // マイク許可を取得してから録音開始
 async function startVoice() {
   try {
-    // マイク許可ダイアログを自動表示
     await navigator.mediaDevices.getUserMedia({ audio: true });
-    // 許可OK → 録音開始
     isRecV=true;
     btnVoice.classList.add('on');
     btnVoice.innerHTML='⏹ 停止';
@@ -1655,14 +1673,13 @@ async function startVoice() {
   } catch(err) {
     stopRec();
     if(err.name==='NotAllowedError' || err.name==='PermissionDeniedError')
-      showToast('設定からマイクの許可をONにしてください','var(--red)');
+      showMicPopup();
     else
       showToast('マイクにアクセスできません','var(--red)');
   }
 }
 
 btnVoice.addEventListener('click',()=>{
-  // Safari の場合はメッセージを表示して終了
   if(isSafari || !SR){
     showToast('音声入力はChrome / Edgeをご使用ください','var(--blue)');
     return;
