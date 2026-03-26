@@ -777,7 +777,7 @@ html,body {
           <strong>ジョグダイヤル：</strong>左右の丸いダイヤルをドラッグするとフレーム単位でコマ送り・戻しができます。<br>
           <strong>速度調整：</strong>0.5x〜10x まで対応。ボタンまたは ↑↓ キーで変更できます。<br>
           <strong>タイムコード移動（PC）：</strong>右上のタイムコード枠をそのままドラッグで移動できます。<br>
-          <strong>タイムコード移動（スマホ）：</strong>タイムコード枠を約0.5秒 長押しすると枠がゴールドに光り、そのままドラッグで移動できます。<br>
+          <strong>タイムコード移動（スマホ）：</strong>タイムコード枠を<span style="color:var(--acc);font-weight:700;">ワンタップ</span>すると枠がゴールドに光り移動モードになります。そのままドラッグで移動、もう一度タップまたは動画エリアをタップで解除します。<br>
           <strong>ボリューム記憶：</strong>設定したボリュームは次回起動時も引き継がれます。<br>
           <strong>音声入力：</strong>Chrome / Edge のみ対応。Safari で押すと案内が表示されます。<br>
           <strong>対応ブラウザ：</strong>Chrome / Edge 推奨。Safari は動画再生に一部制限あり。
@@ -1075,13 +1075,21 @@ function fmtHMS(t) {
 }
 function updateTC() { tcOverlay.textContent = fmtTC(vid.currentTime); }
 
-// TCオーバーレイ ドラッグ移動（PC：即ドラッグ／スマホ：0.5秒長押し後ドラッグ）
+// TCオーバーレイ ドラッグ移動（PC：即ドラッグ／スマホ：ワンタップで移動モードON→ドラッグ）
 (function(){
-  let dragging=false, ox=0, oy=0, holdTimer=null;
+  let dragging=false, moveMode=false, ox=0, oy=0;
 
+  function enterMoveMode() {
+    moveMode=true;
+    tcOverlay.classList.add('tc-holding');
+    showToast('タイムコード移動モードON　もう一度タップで解除','var(--acc)');
+  }
+  function exitMoveMode() {
+    moveMode=false; dragging=false;
+    tcOverlay.classList.remove('tc-holding','tc-dragging');
+  }
   function startDrag(clientX, clientY) {
     dragging=true;
-    tcOverlay.classList.remove('tc-holding');
     tcOverlay.classList.add('tc-dragging');
     ox = clientX - tcOverlay.offsetLeft;
     oy = clientY - tcOverlay.offsetTop;
@@ -1096,32 +1104,43 @@ function updateTC() { tcOverlay.textContent = fmtTC(vid.currentTime); }
     tcDfBadge.style.top  = (clientY - oy + tcOverlay.offsetHeight - 4) + 'px';
   }
   function endDrag() {
-    clearTimeout(holdTimer);
     dragging=false;
-    tcOverlay.classList.remove('tc-holding','tc-dragging');
+    tcOverlay.classList.remove('tc-dragging');
   }
 
-  // PC
+  // PC：mousedownで即ドラッグ
   tcOverlay.addEventListener('mousedown', e => { startDrag(e.clientX, e.clientY); e.preventDefault(); });
   window.addEventListener('mousemove', e => { doMove(e.clientX, e.clientY); });
   window.addEventListener('mouseup', endDrag);
 
-  // スマホ：長押し500msでドラッグ開始
+  // スマホ：ワンタップで移動モードON → ドラッグで移動 → もう一度タップで解除
   tcOverlay.addEventListener('touchstart', e => {
-    const t = e.touches[0];
-    tcOverlay.classList.add('tc-holding');
-    holdTimer = setTimeout(() => {
-      startDrag(t.clientX, t.clientY);
-      showToast('タイムコード移動中…','var(--acc)');
-    }, 500);
+    e.stopPropagation(); // 動画エリアへのタップ伝播を防ぐ（再生しない）
+    if(!moveMode) {
+      enterMoveMode();
+    } else {
+      startDrag(e.touches[0].clientX, e.touches[0].clientY);
+    }
   }, {passive:true});
+
   tcOverlay.addEventListener('touchmove', e => {
-    if(!dragging){ clearTimeout(holdTimer); tcOverlay.classList.remove('tc-holding'); return; }
+    if(!dragging) return;
     e.preventDefault();
     doMove(e.touches[0].clientX, e.touches[0].clientY);
   }, {passive:false});
-  tcOverlay.addEventListener('touchend', endDrag);
-  tcOverlay.addEventListener('touchcancel', endDrag);
+
+  tcOverlay.addEventListener('touchend', e => {
+    if(dragging){ endDrag(); return; }
+    // ドラッグなしのタップ → 移動モード解除
+    if(moveMode){ exitMoveMode(); }
+  });
+
+  tcOverlay.addEventListener('touchcancel', exitMoveMode);
+
+  // 動画エリアをタップしたとき移動モードを解除
+  document.getElementById('video-area').addEventListener('touchstart', e => {
+    if(moveMode && !tcOverlay.contains(e.target)) exitMoveMode();
+  }, {passive:true});
 })();
 
 // NDF/DF切り替え無効化
@@ -1168,6 +1187,7 @@ let clickTimer = null;
 va.addEventListener('click', e => {
   if(e.target===dropzone||dropzone.contains(e.target)) return;
   if(!vid.src||vid.style.display==='none') return;
+  if(tcOverlay.contains(e.target)) return; // タイムコードタップは再生しない
   clearTimeout(clickTimer);
   clickTimer = setTimeout(() => togglePlay(), 220);
 });
