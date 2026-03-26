@@ -137,6 +137,7 @@ html,body {
   border: 2px solid rgba(255,255,255,.28); cursor: move; line-height: 1.4;
   transition: border-color .2s, box-shadow .2s; user-select:none;
   touch-action: none;
+  -webkit-touch-callout: none;
 }
 #tc-overlay:hover { border-color:rgba(255,255,255,.5); }
 #tc-overlay.tc-holding {
@@ -550,7 +551,7 @@ html,body {
 <div id="app">
 
   <div id="topbar">
-    <div class="logo">▶ VideoProof</div>
+    <div class="logo">▶︎ VideoProof</div>
     <div class="tsep"></div>
     <button id="open-btn">📂 動画を開く</button>
     <span id="file-name">ファイルを選択してください…</span>
@@ -760,6 +761,17 @@ html,body {
       </div>
 
       <div class="h-section">
+        <div class="h-section-title">📱 スマホでフルスクリーン表示する方法</div>
+        <div class="h-note">
+          ブラウザのアドレスバーや下部ナビを非表示にするには、<strong>ホーム画面に追加</strong>してアイコンから起動してください。<br><br>
+          <strong>iPhone（Safari）：</strong>画面下の共有ボタン（□↑）をタップ →「ホーム画面に追加」→「追加」<br>
+          <strong>Android（Chrome）：</strong>右上メニュー（⋮）→「ホーム画面に追加」→「追加」<br>
+          <strong>PC（Chrome/Edge）：</strong>アドレスバー右端の ⊕ アイコンをクリック → インストール<br><br>
+          ホーム画面のアイコンから起動すると、アドレスバーや下部ナビが消えて<strong>全画面アプリ</strong>として使えます。
+        </div>
+      </div>
+
+      <div class="h-section">
         <div class="h-section-title">⚙️ その他</div>
         <div class="h-note">
           <strong>ジョグダイヤル：</strong>左右の丸いダイヤルをドラッグするとフレーム単位でコマ送り・戻しができます。<br>
@@ -767,8 +779,7 @@ html,body {
           <strong>タイムコード移動（PC）：</strong>右上のタイムコード枠をそのままドラッグで移動できます。<br>
           <strong>タイムコード移動（スマホ）：</strong>タイムコード枠を約0.5秒 長押しすると枠がゴールドに光り、そのままドラッグで移動できます。<br>
           <strong>ボリューム記憶：</strong>設定したボリュームは次回起動時も引き継がれます。<br>
-          <strong>スマホでアプリ化：</strong>iPhoneはSafariで「共有 → ホーム画面に追加」、Androidは Chrome で「ホーム画面に追加」でアプリとして起動できます。<br>
-          <strong>音声入力：</strong>Chrome / Edge 推奨。Safariは非対応。マイク許可が必要です。<br>
+          <strong>音声入力：</strong>Chrome / Edge のみ対応。Safari で押すと案内が表示されます。<br>
           <strong>対応ブラウザ：</strong>Chrome / Edge 推奨。Safari は動画再生に一部制限あり。
         </div>
       </div>
@@ -971,13 +982,14 @@ class JogDial {
       const sw = cr * 0.68;
       c.fillRect(cx - sw/2, cy - sw/2, sw, sw);
     } else {
-      // ▶ ◀ テキスト記号
+      // ▶ ◀ テキスト記号（\uFE0E でiOS絵文字化を防止）
+      const sym = this.btnSymbol + '\uFE0E';
       c.font = '900 ' + Math.round(s*0.18) + 'px sans-serif';
       c.textAlign = 'center';
       c.textBaseline = 'middle';
-      const offsets = {'▶':[2,0], '◀':[-2,0]};
-      const [ox, oy] = offsets[this.btnSymbol] || [0,0];
-      c.fillText(this.btnSymbol, cx+ox, cy+oy);
+      const offsets = {'▶\uFE0E':[2,0], '◀\uFE0E':[-2,0]};
+      const [ox, oy] = offsets[sym] || [0,0];
+      c.fillText(sym, cx+ox, cy+oy);
     }
 
     c.beginPath(); c.arc(cx,cy,r-2,Math.PI*1.1,Math.PI*1.65);
@@ -1587,7 +1599,11 @@ cphClose.addEventListener('click', ()=>cpanel.classList.remove('open'));
 // ════════════════════════════════════════════
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 let recognition=null, isRecV=false;
-if(SR){
+
+// Safariかどうか判定
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+if(SR && !isSafari){
   recognition=new SR();
   recognition.lang='ja-JP'; recognition.continuous=false; recognition.interimResults=false;
   recognition.onresult=e=>{commentIn.value+=(commentIn.value?' ':'')+e.results[0][0].transcript;stopRec();};
@@ -1598,13 +1614,14 @@ if(SR){
     else showToast('音声認識エラー: '+e.error,'var(--red)');
   };
   recognition.onend=()=>{if(isRecV)stopRec();};
-}else{
-  btnVoice.style.opacity='.35';
-  btnVoice.title='このブラウザは音声入力非対応です（Chrome/Edge推奨）';
 }
 function stopRec(){isRecV=false;btnVoice.classList.remove('on');btnVoice.innerHTML='🎤 音声';}
 btnVoice.addEventListener('click',()=>{
-  if(!SR) return;
+  // Safari の場合はメッセージを表示して終了
+  if(isSafari || !SR){
+    showToast('音声入力はChrome / Edgeをご使用ください','var(--blue)');
+    return;
+  }
   if(isRecV){recognition.stop();stopRec();}
   else{recognition.start();isRecV=true;btnVoice.classList.add('on');btnVoice.innerHTML='⏹ 停止';}
 });
