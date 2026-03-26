@@ -1600,8 +1600,10 @@ cphClose.addEventListener('click', ()=>cpanel.classList.remove('open'));
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 let recognition=null, isRecV=false;
 
-// Safariかどうか判定
-const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+// ブラウザ判定（CriOS=iPhoneChrome / EdgiOS=iPhoneEdge）
+const _ua = navigator.userAgent;
+const isChromeBrowser = /chrome|chromium|crios|edgios/i.test(_ua);
+const isSafari = /safari/i.test(_ua) && !isChromeBrowser;
 
 if(SR && !isSafari){
   recognition=new SR();
