@@ -231,7 +231,7 @@ html,body {
 .btn.rev-btn:hover { border-color:var(--border); color:var(--blue); }
 .btn.rev-btn.act-blue { color:#fff; }
 
-#btn-prev10, #btn-next10 { font-size:.85rem; line-height:1; display:flex; align-items:center; justify-content:center; gap:1px; position:relative; top:1px; }
+#btn-prev10, #btn-next10 { font-size:.85rem; line-height:1; display:flex; align-items:center; justify-content:center; gap:1px; }
 .csep { width:1px; height:28px; background:var(--border); flex-shrink:0; align-self:center; }
 
 /* ボリュームバー */
@@ -417,6 +417,24 @@ html,body {
 #toast { position:fixed; bottom:60px; left:50%; transform:translateX(-50%) translateY(20px); background:rgba(0,0,0,.9); border:1px solid var(--border); padding:8px 18px; border-radius:5px; font-family:var(--mono); font-size:.75rem; color:var(--text); opacity:0; transition:all .3s; pointer-events:none; z-index:999; white-space:nowrap; }
 #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 
+/* ═══ マイク許可ポップアップ ═══ */
+#mic-popup {
+  position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+  background:var(--panel); border:1px solid var(--acc);
+  border-radius:8px; padding:12px 16px; z-index:1000;
+  font-family:var(--body); font-size:.78rem; color:var(--text);
+  box-shadow:0 4px 20px rgba(0,0,0,.6); max-width:280px; text-align:center;
+  display:none;
+}
+#mic-popup.show { display:block; }
+#mic-popup-title { color:var(--acc); font-weight:700; font-size:.82rem; margin-bottom:6px; }
+#mic-popup-msg { color:var(--muted); font-size:.72rem; line-height:1.6; margin-bottom:10px; }
+#mic-popup-close {
+  padding:4px 16px; background:var(--acc); color:#000;
+  border:none; border-radius:4px; cursor:pointer;
+  font-family:var(--ui); font-weight:700; font-size:.75rem;
+}
+
 /* ═══ HELP BUTTON ═══ */
 #help-btn {
   display:flex; align-items:center; gap:5px;
@@ -550,7 +568,7 @@ html,body {
 <div id="app">
 
   <div id="topbar">
-    <div class="logo">▶ VideoProof</div>
+    <div class="logo">▶︎ VideoProof</div>
     <div class="tsep"></div>
     <button id="open-btn">📂 動画を開く</button>
     <span id="file-name">ファイルを選択してください…</span>
@@ -765,7 +783,7 @@ html,body {
           <strong>ジョグダイヤル：</strong>左右の丸いダイヤルをドラッグするとフレーム単位でコマ送り・戻しができます。<br>
           <strong>速度調整：</strong>0.5x〜10x まで対応。ボタンまたは ↑↓ キーで変更できます。<br>
           <strong>タイムコード移動（PC）：</strong>右上のタイムコード枠をそのままドラッグで移動できます。<br>
-          <strong>タイムコード移動（スマホ）：</strong>タイムコード枠を約0.5秒 長押しすると枠がゴールドに光り、そのままドラッグで移動できます。<br>
+          <strong>タイムコード移動（スマホ）：</strong>タイムコード枠をタッチすると枠がゴールドに光り、そのままドラッグで自由に移動できます。タッチ中は動画の再生・停止は行いません。<br>
           <strong>ボリューム記憶：</strong>設定したボリュームは次回起動時も引き継がれます。<br>
           <strong>スマホでアプリ化：</strong>iPhoneはSafariで「共有 → ホーム画面に追加」、Androidは Chrome で「ホーム画面に追加」でアプリとして起動できます。<br>
           <strong>音声入力：</strong>Chrome / Edge 推奨。Safariは非対応。マイク許可が必要です。<br>
@@ -777,6 +795,11 @@ html,body {
   </div>
 </div>
 
+<div id="mic-popup">
+  <div id="mic-popup-title">🎤 マイクの許可が必要です</div>
+  <div id="mic-popup-msg">ブラウザの設定からマイクを許可してください。<br>アドレスバー左の 🔒 → マイク → 許可</div>
+  <button id="mic-popup-close">閉じる</button>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -971,13 +994,14 @@ class JogDial {
       const sw = cr * 0.68;
       c.fillRect(cx - sw/2, cy - sw/2, sw, sw);
     } else {
-      // ▶ ◀ テキスト記号
+      // ▶ ◀ テキスト記号（\uFE0E でiOS絵文字化を防止）
+      const sym = this.btnSymbol + '\uFE0E';
       c.font = '900 ' + Math.round(s*0.18) + 'px sans-serif';
       c.textAlign = 'center';
       c.textBaseline = 'middle';
-      const offsets = {'▶':[2,0], '◀':[-2,0]};
-      const [ox, oy] = offsets[this.btnSymbol] || [0,0];
-      c.fillText(this.btnSymbol, cx+ox, cy+oy);
+      const offsets = {'▶\uFE0E':[2,0], '◀\uFE0E':[-2,0]};
+      const [ox, oy] = offsets[sym] || [0,0];
+      c.fillText(sym, cx+ox, cy+oy);
     }
 
     c.beginPath(); c.arc(cx,cy,r-2,Math.PI*1.1,Math.PI*1.65);
@@ -1063,52 +1087,65 @@ function fmtHMS(t) {
 }
 function updateTC() { tcOverlay.textContent = fmtTC(vid.currentTime); }
 
-// TCオーバーレイ ドラッグ移動（PC：即ドラッグ／スマホ：0.5秒長押し後ドラッグ）
+// TCオーバーレイ ドラッグ移動
+// PC  : mousedownで即ドラッグ
+// スマホ: touchstartで即ゴールド点灯＋即ドラッグ / touchendで消灯
+// ※ stopPropagationで動画エリアの再生トリガーを防ぐ
 (function(){
-  let dragging=false, ox=0, oy=0, holdTimer=null;
+  let dragging=false, ox=0, oy=0;
 
   function startDrag(clientX, clientY) {
-    dragging=true;
-    tcOverlay.classList.remove('tc-holding');
-    tcOverlay.classList.add('tc-dragging');
-    ox = clientX - tcOverlay.offsetLeft;
-    oy = clientY - tcOverlay.offsetTop;
-    tcOverlay.style.right='auto';
-    tcDfBadge.style.right='auto';
+    // getBoundingClientRectで現在位置を正確に取得（right指定でも正しく取れる）
+    const tcRect = tcOverlay.getBoundingClientRect();
+    const vaRect = document.getElementById('video-area').getBoundingClientRect();
+    const leftVal = tcRect.left - vaRect.left;
+    const topVal  = tcRect.top  - vaRect.top;
+    // right→autoに切り替えてleft/topで制御
+    tcOverlay.style.right  = 'auto';
+    tcDfBadge.style.right  = 'auto';
+    tcOverlay.style.left   = leftVal + 'px';
+    tcOverlay.style.top    = topVal  + 'px';
+    tcDfBadge.style.left   = (leftVal + 2) + 'px';
+    tcDfBadge.style.top    = (topVal + tcOverlay.offsetHeight - 4) + 'px';
+    dragging = true;
+    tcOverlay.classList.add('tc-holding','tc-dragging');
+    ox = clientX - vaRect.left - leftVal;
+    oy = clientY - vaRect.top  - topVal;
   }
   function doMove(clientX, clientY) {
     if(!dragging) return;
-    tcOverlay.style.left = (clientX - ox) + 'px';
-    tcOverlay.style.top  = (clientY - oy) + 'px';
-    tcDfBadge.style.left = (clientX - ox + 2) + 'px';
-    tcDfBadge.style.top  = (clientY - oy + tcOverlay.offsetHeight - 4) + 'px';
+    const vaRect = document.getElementById('video-area').getBoundingClientRect();
+    const lx = clientX - vaRect.left - ox;
+    const ly = clientY - vaRect.top  - oy;
+    tcOverlay.style.left  = lx + 'px';
+    tcOverlay.style.top   = ly + 'px';
+    tcDfBadge.style.left  = (lx + 2) + 'px';
+    tcDfBadge.style.top   = (ly + tcOverlay.offsetHeight - 4) + 'px';
   }
   function endDrag() {
-    clearTimeout(holdTimer);
-    dragging=false;
+    dragging = false;
     tcOverlay.classList.remove('tc-holding','tc-dragging');
   }
 
   // PC
-  tcOverlay.addEventListener('mousedown', e => { startDrag(e.clientX, e.clientY); e.preventDefault(); });
+  tcOverlay.addEventListener('mousedown', e => {
+    startDrag(e.clientX, e.clientY);
+    e.preventDefault();
+  });
   window.addEventListener('mousemove', e => { doMove(e.clientX, e.clientY); });
   window.addEventListener('mouseup', endDrag);
 
-  // スマホ：長押し500msでドラッグ開始
+  // スマホ：touchstartで即光る＋即ドラッグ開始
   tcOverlay.addEventListener('touchstart', e => {
-    const t = e.touches[0];
-    tcOverlay.classList.add('tc-holding');
-    holdTimer = setTimeout(() => {
-      startDrag(t.clientX, t.clientY);
-      showToast('タイムコード移動中…','var(--acc)');
-    }, 500);
+    e.stopPropagation(); // 動画エリアへの再生トリガーを防ぐ
+    startDrag(e.touches[0].clientX, e.touches[0].clientY);
   }, {passive:true});
   tcOverlay.addEventListener('touchmove', e => {
-    if(!dragging){ clearTimeout(holdTimer); tcOverlay.classList.remove('tc-holding'); return; }
+    if(!dragging) return;
     e.preventDefault();
     doMove(e.touches[0].clientX, e.touches[0].clientY);
   }, {passive:false});
-  tcOverlay.addEventListener('touchend', endDrag);
+  tcOverlay.addEventListener('touchend',    endDrag);
   tcOverlay.addEventListener('touchcancel', endDrag);
 })();
 
@@ -1156,6 +1193,7 @@ let clickTimer = null;
 va.addEventListener('click', e => {
   if(e.target===dropzone||dropzone.contains(e.target)) return;
   if(!vid.src||vid.style.display==='none') return;
+  if(tcOverlay.contains(e.target)) return; // タイムコードタップは再生しない
   clearTimeout(clickTimer);
   clickTimer = setTimeout(() => togglePlay(), 220);
 });
@@ -1587,26 +1625,75 @@ cphClose.addEventListener('click', ()=>cpanel.classList.remove('open'));
 // ════════════════════════════════════════════
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 let recognition=null, isRecV=false;
-if(SR){
+
+// ブラウザ判定（CriOS=iPhoneChrome / EdgiOS=iPhoneEdge）
+const _ua = navigator.userAgent;
+const isChromeBrowser = /chrome|chromium|crios|edgios/i.test(_ua);
+const isSafari = /safari/i.test(_ua) && !isChromeBrowser;
+
+// マイク許可ポップアップ
+const micPopup = $('mic-popup');
+$('mic-popup-close').addEventListener('click', () => micPopup.classList.remove('show'));
+function showMicPopup() { micPopup.classList.add('show'); }
+
+if(SR && !isSafari){
   recognition=new SR();
   recognition.lang='ja-JP'; recognition.continuous=false; recognition.interimResults=false;
-  recognition.onresult=e=>{commentIn.value+=(commentIn.value?' ':'')+e.results[0][0].transcript;stopRec();};
+  recognition.onresult=e=>{
+    const text = e.results[0][0].transcript;
+    if(text) commentIn.value += (commentIn.value?' ':'')+text;
+    stopRec();
+  };
   recognition.onerror=e=>{
     stopRec();
-    if(e.error==='not-allowed') showToast('マイクの許可が必要です','var(--red)');
+    if(e.error==='not-allowed') showMicPopup();
     else if(e.error==='network') showToast('音声認識にはネット接続が必要です','var(--red)');
+    else if(e.error==='aborted') { /* 正常終了のため無視 */ }
     else showToast('音声認識エラー: '+e.error,'var(--red)');
   };
   recognition.onend=()=>{if(isRecV)stopRec();};
-}else{
-  btnVoice.style.opacity='.35';
-  btnVoice.title='このブラウザは音声入力非対応です（Chrome/Edge推奨）';
 }
 function stopRec(){isRecV=false;btnVoice.classList.remove('on');btnVoice.innerHTML='🎤 音声';}
+
+// マイク許可状態を確認してから録音開始
+// 許可済みならgetUserMediaをスキップ（毎回ダイアログが出るのを防ぐ）
+async function startVoice() {
+  try {
+    let micGranted = false;
+    if(navigator.permissions) {
+      try {
+        const perm = await navigator.permissions.query({ name:'microphone' });
+        if(perm.state === 'granted') micGranted = true;
+        else if(perm.state === 'denied') { showMicPopup(); return; }
+      } catch(e) { /* Permissions API非対応ブラウザは無視 */ }
+    }
+    // 未確認の場合のみgetUserMediaでダイアログ表示→即ストリーム解放
+    if(!micGranted) {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop()); // recognitionと競合しないよう解放
+    }
+    // 録音開始
+    isRecV=true;
+    btnVoice.classList.add('on');
+    btnVoice.innerHTML='⏹ 停止';
+    recognition.start();
+  } catch(err) {
+    stopRec();
+    if(err.name==='NotAllowedError'||err.name==='PermissionDeniedError')
+      showMicPopup();
+    else
+      showToast('マイクにアクセスできません','var(--red)');
+  }
+}
+
 btnVoice.addEventListener('click',()=>{
-  if(!SR) return;
-  if(isRecV){recognition.stop();stopRec();}
-  else{recognition.start();isRecV=true;btnVoice.classList.add('on');btnVoice.innerHTML='⏹ 停止';}
+  // Safariは非対応のためメッセージ表示
+  if(isSafari || !SR){
+    showToast('音声入力はChrome / Edgeをご使用ください','var(--blue)');
+    return;
+  }
+  if(isRecV){ recognition.stop(); stopRec(); }
+  else { startVoice(); }
 });
 
 // ════════════════════════════════════════════
