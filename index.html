@@ -308,16 +308,16 @@ html,body {
 #sel-badge.show { display:flex; }
 #comment-row { display:flex; gap:6px; align-items:center; }
 
-/* Enterボタン */
+/* Enterボタン（音声ボタンと同じスタイル） */
 #btn-enter {
   display:flex; align-items:center; justify-content:center;
-  padding:0 12px; height:36px; flex-shrink:0;
-  background:var(--acc); color:#000;
-  font-family:var(--ui); font-size:.75rem; font-weight:700;
-  letter-spacing:.05em; border:none; border-radius:4px;
-  cursor:pointer; white-space:nowrap; transition:opacity .15s;
+  padding:0 14px; height:36px; flex-shrink:0;
+  background:var(--bg3); border:1px solid rgba(255,255,255,0.5); border-radius:4px;
+  cursor:pointer; color:var(--text);
+  font-family:var(--ui); font-size:.72rem; font-weight:700;
+  transition:all .15s; white-space:nowrap;
 }
-#btn-enter:hover { opacity:.85; }
+#btn-enter:hover { border-color:var(--acc); color:var(--acc); }
 
 /* 枠線を 0.22 -> 0.5 にして明るく */
 #comment-input {
@@ -354,7 +354,7 @@ html,body {
   font-family:var(--mono); font-size:.78rem; color:var(--gold);
   flex:1; text-align:center; padding:4px 10px;
   background:var(--bg3); border:1px solid rgba(200,150,12,.3); border-radius:4px;
-  cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  cursor:pointer; white-space:nowrap;
 }
 #mk-jump-label:hover { border-color:var(--acc); }
 
@@ -428,24 +428,6 @@ html,body {
 /* Toast */
 #toast { position:fixed; bottom:60px; left:50%; transform:translateX(-50%) translateY(20px); background:rgba(0,0,0,.9); border:1px solid var(--border); padding:8px 18px; border-radius:5px; font-family:var(--mono); font-size:.75rem; color:var(--text); opacity:0; transition:all .3s; pointer-events:none; z-index:999; white-space:nowrap; }
 #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
-
-/* ═══ マイク許可ポップアップ ═══ */
-#mic-popup {
-  position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
-  background:var(--panel); border:1px solid var(--acc);
-  border-radius:8px; padding:12px 16px; z-index:1000;
-  font-family:var(--body); font-size:.78rem; color:var(--text);
-  box-shadow:0 4px 20px rgba(0,0,0,.6); max-width:280px; text-align:center;
-  display:none;
-}
-#mic-popup.show { display:block; }
-#mic-popup-title { color:var(--acc); font-weight:700; font-size:.82rem; margin-bottom:6px; }
-#mic-popup-msg { color:var(--muted); font-size:.72rem; line-height:1.6; margin-bottom:10px; }
-#mic-popup-close {
-  padding:4px 16px; background:var(--acc); color:#000;
-  border:none; border-radius:4px; cursor:pointer;
-  font-family:var(--ui); font-weight:700; font-size:.75rem;
-}
 
 /* ═══ HELP BUTTON ═══ */
 #help-btn {
@@ -811,11 +793,6 @@ html,body {
   </div>
 </div>
 
-<div id="mic-popup">
-  <div id="mic-popup-title">🎤 マイクの許可が必要です</div>
-  <div id="mic-popup-msg">ブラウザの設定からマイクを許可してください。<br>アドレスバー左の 🔒 → マイク → 許可</div>
-  <button id="mic-popup-close">閉じる</button>
-</div>
 <div id="toast"></div>
 
 <script>
@@ -1412,7 +1389,8 @@ function selectMarker(id) {
   selBadge.classList.add('show');
   commentIn.classList.add('mk');
   commentIn.placeholder = `M${m.num} へのコメントを入力 (Enter で追加)`;
-  commentIn.focus();
+  // スマホではキーボードが出ないようにfocusしない
+  if(!('ontouchstart' in window)) commentIn.focus();
   document.querySelectorAll('.vmarker-wrap').forEach(el =>
     el.classList.toggle('sel', +el.dataset.id===id)
   );
@@ -1424,7 +1402,7 @@ badgeClear.addEventListener('click', () => {
 });
 
 commentIn.addEventListener('keydown', e => { if(e.key==='Enter'){e.preventDefault();addComment();} });
-$('btn-enter').addEventListener('click', () => { addComment(); commentIn.focus(); });
+$('btn-enter').addEventListener('click', () => { addComment(); });
 function addComment() {
   const text=commentIn.value.trim(); if(!text) return;
   const t = vid.currentTime;
@@ -1648,11 +1626,6 @@ const _ua = navigator.userAgent;
 const isChromeBrowser = /chrome|chromium|crios|edgios/i.test(_ua);
 const isSafari = /safari/i.test(_ua) && !isChromeBrowser;
 
-// マイク許可ポップアップ
-const micPopup = $('mic-popup');
-$('mic-popup-close').addEventListener('click', () => micPopup.classList.remove('show'));
-function showMicPopup() { micPopup.classList.add('show'); }
-
 if(SR && !isSafari){
   recognition=new SR();
   recognition.lang='ja-JP'; recognition.continuous=false; recognition.interimResults=false;
@@ -1660,10 +1633,12 @@ if(SR && !isSafari){
     const text = e.results[0][0].transcript;
     if(text) commentIn.value += (commentIn.value?' ':'')+text;
     stopRec();
+    // マーカー選択中のみ自動登録。未選択時はテキストを入れるだけ
+    if(selMkId !== null) addComment();
   };
   recognition.onerror=e=>{
     stopRec();
-    if(e.error==='not-allowed') showMicPopup();
+    if(e.error==='not-allowed') showToast('マイクの許可が必要です','var(--red)');
     else if(e.error==='network') showToast('音声認識にはネット接続が必要です','var(--red)');
     else if(e.error==='aborted') { /* 正常終了のため無視 */ }
     else showToast('音声認識エラー: '+e.error,'var(--red)');
@@ -1682,7 +1657,10 @@ async function startVoice() {
         try {
           const perm = await navigator.permissions.query({ name:'microphone' });
           if(perm.state === 'granted') micPermissionGranted = true;
-          else if(perm.state === 'denied') { showMicPopup(); return; }
+          else if(perm.state === 'denied') {
+            showToast('マイクの許可が必要です','var(--red)');
+            return;
+          }
         } catch(e) { /* Permissions API非対応ブラウザは無視 */ }
       }
       // 未確認の場合のみgetUserMediaでダイアログ表示→即ストリーム解放
@@ -1699,10 +1677,7 @@ async function startVoice() {
     recognition.start();
   } catch(err) {
     stopRec();
-    if(err.name==='NotAllowedError'||err.name==='PermissionDeniedError')
-      showMicPopup();
-    else
-      showToast('マイクにアクセスできません','var(--red)');
+    showToast('マイクにアクセスできません','var(--red)');
   }
 }
 
@@ -1710,6 +1685,11 @@ btnVoice.addEventListener('click',()=>{
   // Safariは非対応のためメッセージ表示
   if(isSafari || !SR){
     showToast('音声入力はChrome / Edgeをご使用ください','var(--blue)');
+    return;
+  }
+  // マーカー未選択時は音声入力を無効
+  if(selMkId === null){
+    showToast('マーカーを選択してから音声入力してください','var(--gold)');
     return;
   }
   if(isRecV){ recognition.stop(); stopRec(); }
