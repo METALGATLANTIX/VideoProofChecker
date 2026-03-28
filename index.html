@@ -1492,18 +1492,7 @@ function addComment() {
       return;
     }
   }
-  if(!markers.length) markers.push({id:Date.now(),num:++mkCount,time:t,x:null,y:null,comments:[]});
-  const last=markers[markers.length-1];
-  const commentText = text.startsWith('[M') ? text : `[M${last.num}] ${text}`;
-  last.comments.push({id:Date.now(),text:commentText,tc:fmtTC(t),hms:fmtHMS(t),time:t});
-  commentIn.value='';
-  selMkId=null;
-  selBadge.classList.remove('show');
-  commentIn.classList.remove('mk');
-  commentIn.placeholder='コメント入力… (Enterで追加)';
-  document.querySelectorAll('.vmarker-wrap').forEach(el=>el.classList.remove('sel'));
-  renderAll();
-  mkBadge.textContent = totalComments();
+  // マーカー未選択時は何もしない
 }
 
 function totalComments() {
