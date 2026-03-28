@@ -1492,7 +1492,16 @@ function addComment() {
       return;
     }
   }
-  // マーカー未選択時は何もしない
+  // マーカー未選択時は入力文字を削除して何もしない
+  commentIn.value = '';
+}
+  selMkId=null;
+  selBadge.classList.remove('show');
+  commentIn.classList.remove('mk');
+  commentIn.placeholder='コメント入力… (Enterで追加)';
+  document.querySelectorAll('.vmarker-wrap').forEach(el=>el.classList.remove('sel'));
+  renderAll();
+  mkBadge.textContent = totalComments();
 }
 
 function totalComments() {
