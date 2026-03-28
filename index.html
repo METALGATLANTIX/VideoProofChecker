@@ -1729,10 +1729,15 @@ function startVoice() {
   // 毎回新しいrecognitionを生成（2回目以降もonresultが正しく発火するように）
   recognition = createRecognition();
   if(!recognition) return;
-  isRecV=true;
-  btnVoice.classList.add('on');
-  btnVoice.innerHTML='⏹ 停止';
-  recognition.start();
+  try {
+    recognition.start();
+    isRecV=true;
+    btnVoice.classList.add('on');
+    btnVoice.innerHTML='⏹ 停止';
+  } catch(e) {
+    stopRec();
+    showToast('音声入力を開始できませんでした','var(--red)');
+  }
 }
 
 btnVoice.addEventListener('click',()=>{
