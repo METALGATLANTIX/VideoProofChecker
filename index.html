@@ -1453,6 +1453,7 @@ function addComment() {
       showToast(`M${m.num} にコメントを追加`,'var(--gold)');
       // selMkIdは維持（連続入力できるように）
       // コメント欄のみクリアしてすぐ次の入力を受け付ける
+      commentModeBlocked = false; // 登録完了後はポップアップ状態をリセット
       renderAll();
       return;
     }
@@ -1575,21 +1576,21 @@ $('mk-jump-prev').addEventListener('click', () => {
   if(!markers.length) return;
   mkJumpIdx = mkJumpIdx <= 0 ? markers.length-1 : mkJumpIdx-1;
   if(vid.src) vid.currentTime = markers[mkJumpIdx].time;
-  selectMarker(markers[mkJumpIdx].id, false);
+  selectMarker(markers[mkJumpIdx].id);
   updateJumpLabel();
 });
 $('mk-jump-next').addEventListener('click', () => {
   if(!markers.length) return;
   mkJumpIdx = (mkJumpIdx+1) % markers.length;
   if(vid.src) vid.currentTime = markers[mkJumpIdx].time;
-  selectMarker(markers[mkJumpIdx].id, false);
+  selectMarker(markers[mkJumpIdx].id);
   updateJumpLabel();
 });
 $('mk-jump-label').addEventListener('click', () => {
   if(!markers.length) return;
   const idx = mkJumpIdx < 0 ? 0 : mkJumpIdx;
   if(vid.src) vid.currentTime = markers[idx].time;
-  selectMarker(markers[idx].id, false);
+  selectMarker(markers[idx].id);
 });
 function deleteComment(cid) {
   markers.forEach(m=>{m.comments=m.comments.filter(c=>c.id!==cid);});
@@ -1714,7 +1715,7 @@ function createRecognition() {
     else if(e.error==='aborted') { /* 正常終了のため無視 */ }
     else showToast('音声認識エラー: '+e.error,'var(--red)');
   };
-  r.onend=()=>{if(isRecV)stopRec();};
+  r.onend=()=>{if(isRecV && recognition===r)stopRec();};
   return r;
 }
 // 初回生成
