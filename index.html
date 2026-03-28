@@ -1419,6 +1419,7 @@ function addMarker(x,y,t) {
 function hideCommentModePopup() {
   pendingMode = null;
   $('cm-popup').classList.remove('show');
+  commentIn.readOnly = false;
 }
 function deleteMarker(id) {
   hideCommentModePopup();
@@ -1453,6 +1454,7 @@ function selectMarker(id, showPopup=true) {
   if(showPopup && m.comments.length > 0) {
     $('cm-popup-label').textContent = `M${m.num} コメントあり：`;
     $('cm-popup').classList.add('show');
+    commentIn.readOnly = true;
   }
 }
 badgeClear.addEventListener('click', () => {
@@ -1505,7 +1507,8 @@ function addComment() {
     m.comments = [];
     m.comments.push({id:Date.now(),text:`[M${m.num}] ${finalText}`,tc:fmtTC(t),hms:fmtHMS(t),time:t});
   } else {
-    // 通常モード
+    // 通常モード：ポップアップ表示中は登録しない
+    if($('cm-popup').classList.contains('show')) return;
     m.comments.push({id:Date.now(),text:`[M${m.num}] ${finalText}`,tc:fmtTC(t),hms:fmtHMS(t),time:t});
   }
   hideCommentModePopup();
@@ -1784,6 +1787,7 @@ btnVoice.addEventListener('click',()=>{
   if(m && m.comments.length > 0 && pendingMode===null) {
     $('cm-popup-label').textContent = `M${m.num} コメントあり：`;
     $('cm-popup').classList.add('show');
+    commentIn.readOnly = true;
     return;
   }
   if(isRecV){ if(recognition) recognition.stop(); stopRec(); }
