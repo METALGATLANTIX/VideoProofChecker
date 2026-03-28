@@ -161,7 +161,7 @@ html,body {
   display:flex; align-items:center; cursor:pointer; padding:0 12px;
 }
 #seek-bg    { position:absolute; left:12px; right:12px; top:50%; transform:translateY(-50%); height:4px; background:var(--bg3); border-radius:2px; }
-#seek-fill  { position:absolute; left:12px; top:50%; transform:translateY(-50%); height:4px; background:var(--ytred); border-radius:2px; width:0%; pointer-events:none; }
+#seek-fill  { position:absolute; left:12px; top:50%; transform:translateY(-50%); height:4px; background:var(--ytred); border-radius:2px; width:0px; pointer-events:none; }
 #seek-thumb { position:absolute; left:12px; top:50%; transform:translate(-50%,-50%); width:14px; height:14px; background:var(--ytred); border-radius:50%; box-shadow:0 0 6px var(--ytred); pointer-events:none; z-index:2; }
 .tlm { position:absolute; top:50%; transform:translate(-50%,-50%); cursor:pointer; z-index:3; pointer-events:auto; }
 .tlm-tri { width:0; height:0; border-left:5px solid transparent; border-right:5px solid transparent; border-bottom:9px solid var(--gold); filter:drop-shadow(0 0 4px var(--gold)); }
@@ -307,10 +307,25 @@ html,body {
 }
 #sel-badge.show { display:flex; }
 #comment-row { display:flex; gap:6px; align-items:center; }
-/* PC：入力枠→Enter→音声 の順に表示 */
-#comment-input { order:1; }
-#btn-enter     { order:2; }
-#btn-voice     { order:3; }
+
+/* ═══ コメントモードポップアップ（追加/上書き/✕） ═══ */
+#cm-popup {
+  display:none; position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
+  background:var(--panel); border:1px solid var(--gold); border-radius:6px;
+  padding:10px 14px; z-index:600; align-items:center; gap:8px;
+  font-family:var(--ui); font-size:.78rem; white-space:nowrap;
+  box-shadow:0 4px 16px rgba(0,0,0,.6);
+}
+#cm-popup.show { display:flex; }
+#cm-popup-label { color:var(--gold); font-weight:700; margin-right:4px; }
+.cm-btn {
+  padding:4px 12px; border-radius:4px; cursor:pointer; font-family:var(--ui);
+  font-size:.75rem; font-weight:700; border:1px solid; transition:all .15s;
+}
+.cm-btn-add  { background:rgba(80,224,144,.1); border-color:var(--green); color:var(--green); }
+.cm-btn-over { background:rgba(224,80,80,.1);  border-color:var(--red);   color:var(--red); }
+.cm-btn-cancel { background:transparent; border-color:var(--border); color:var(--muted); }
+.cm-btn:hover { opacity:.8; }
 
 /* Enterボタン（音声ボタンと同じスタイル） */
 #btn-enter {
@@ -322,6 +337,13 @@ html,body {
   transition:all .15s; white-space:nowrap;
 }
 #btn-enter:hover { border-color:var(--acc); color:var(--acc); }
+/* PC: Enter は入力枠と音声の間（HTML順のまま）*/
+/* スマホ: 入力枠→Enter→音声 の順にする */
+@media (max-width: 600px) {
+  #comment-input { order:1; }
+  #btn-enter     { order:2; }
+  #btn-voice     { order:3; }
+}
 
 /* 枠線を 0.22 -> 0.5 にして明るく */
 #comment-input {
@@ -433,39 +455,7 @@ html,body {
 #toast { position:fixed; bottom:60px; left:50%; transform:translateX(-50%) translateY(20px); background:rgba(0,0,0,.9); border:1px solid var(--border); padding:8px 18px; border-radius:5px; font-family:var(--mono); font-size:.75rem; color:var(--text); opacity:0; transition:all .3s; pointer-events:none; z-index:999; white-space:nowrap; }
 #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 
-/* ═══ コメントモード選択ポップアップ ═══ */
-#comment-mode-popup {
-  position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
-  background:var(--panel); border:1px solid var(--gold);
-  border-radius:8px; padding:14px 18px; z-index:1000;
-  font-family:var(--body); color:var(--text);
-  box-shadow:0 4px 20px rgba(0,0,0,.7); text-align:center;
-  display:none; min-width:220px;
-}
-#comment-mode-popup.show { display:block; }
-#comment-mode-title {
-  font-family:var(--ui); font-weight:700; font-size:.82rem;
-  color:var(--gold); margin-bottom:12px; letter-spacing:.08em;
-}
-#cm-btn-cancel {
-  position:absolute; top:6px; right:8px;
-  cursor:pointer; color:var(--muted); font-size:1rem;
-  padding:2px 6px; border-radius:3px; transition:color .15s;
-}
-#cm-btn-cancel:hover { color:var(--text); }
-#comment-mode-btns { display:flex; gap:8px; justify-content:center; }
-.cm-btn {
-  flex:1; padding:7px 0;
-  background:var(--bg3); border:1px solid var(--border); border-radius:4px;
-  cursor:pointer; color:var(--text);
-  font-family:var(--ui); font-size:.75rem; font-weight:700;
-  letter-spacing:.06em; transition:all .15s;
-}
-.cm-btn:hover { border-color:var(--acc); color:var(--acc); }
-.cm-btn.add  { border-color:rgba(80,224,144,.4); color:var(--green); }
-.cm-btn.add:hover { border-color:var(--green); }
-.cm-btn.over { border-color:rgba(224,80,80,.4); color:var(--red); }
-.cm-btn.over:hover { border-color:var(--red); }
+/* ═══ HELP BUTTON ═══ */
 #help-btn {
   display:flex; align-items:center; gap:5px;
   padding:5px 12px; height:28px;
@@ -509,6 +499,7 @@ html,body {
   overflow-y:auto; padding:20px 24px 24px;
   scrollbar-width:thin; scrollbar-color:var(--border) transparent;
   flex:1; min-height:0;
+  -webkit-overflow-scrolling:touch;
 }
 .h-section { margin-bottom:22px; }
 .h-section-title {
@@ -587,10 +578,6 @@ html,body {
   #btn-enter   { padding: 0 8px; height: 26px; font-size: .62rem; }
   #comment-input { height: 26px; font-size: .72rem; padding: 2px 7px; }
   #comment-row { gap: 3px; }
-  /* スマホ：元の並び順（Enter→入力枠→音声）に戻す */
-  #btn-enter     { order:1; }
-  #comment-input { order:2; }
-  #btn-voice     { order:3; }
   #mk-jump-prev, #mk-jump-next { width: 22px; height: 22px; font-size: .72rem; }
   #mk-jump-label { font-size: .65rem; padding: 2px 5px; }
   #seek-track { height: 20px; }
@@ -797,7 +784,7 @@ html,body {
         <table class="h-table">
           <tr><th>操作</th><th>方法</th></tr>
           <tr><td>コメントを追加</td><td>下部テキスト欄に入力して <span class="h-key">Enter</span></td></tr>
-          <tr><td>音声入力</td><td>マーカーを選択後「🎤 音声」ボタンを押して話す（Chrome / Edge 推奨）。マイク確認が表示された場合は許可後そのまま話すとコメント欄に入力されます。話し終わったら「↵ Enter」ボタンまたはEnterキーを押して登録してください</td></tr>
+          <tr><td>音声入力</td><td>「🎤 音声」ボタンを押して話す → 「↵ Enter」ボタンで登録（Chrome / Edge 推奨）</td></tr>
           <tr><td>コメント一覧を見る</td><td>右上の丸ボタン（数字バッジ）をクリック</td></tr>
           <tr><td>コメントを削除</td><td>一覧上のコメントにマウスを乗せると右上に ✕ が表示される</td></tr>
         </table>
@@ -832,13 +819,11 @@ html,body {
   </div>
 </div>
 
-<div id="comment-mode-popup">
-  <span id="cm-btn-cancel">✕</span>
-  <div id="comment-mode-title">コメントが既に入力されています</div>
-  <div id="comment-mode-btns">
-    <div class="cm-btn add"  id="cm-btn-add">➕ 追加</div>
-    <div class="cm-btn over" id="cm-btn-over">🔄 上書き</div>
-  </div>
+<div id="cm-popup">
+  <span id="cm-popup-label">コメントあり：</span>
+  <div class="cm-btn cm-btn-add"  id="cm-btn-add">追加</div>
+  <div class="cm-btn cm-btn-over" id="cm-btn-over">上書き</div>
+  <div class="cm-btn cm-btn-cancel" id="cm-btn-cancel">✕</div>
 </div>
 <div id="toast"></div>
 
@@ -854,6 +839,7 @@ let isDragSeek = false;
 let markers  = [];             
 let selMkId  = null;
 let mkCount  = 0;
+let pendingMode = null; // 'add' | 'over' | null
 
 let revPlaying = false;
 let revRafId   = null;
@@ -1345,8 +1331,8 @@ setSpeed(1.0);
 function updateSeek() {
   if(!vid.duration) return;
   const p = (vid.currentTime/vid.duration)*100;
+  seekFill.style.width = p+'%';
   const tw = seekTrack.clientWidth-24;
-  seekFill.style.width = (p/100)*tw+'px';
   seekThumb.style.left = (12+(p/100)*tw)+'px';
 }
 function seekTo(e) {
@@ -1359,9 +1345,10 @@ seekTrack.addEventListener('mousedown',  e=>{isDragSeek=true; seekTo(e);});
 seekTrack.addEventListener('touchstart', e=>{isDragSeek=true; seekTo(e);},{passive:false});
 window.addEventListener('mousemove', e=>{if(isDragSeek)seekTo(e);});
 window.addEventListener('touchmove', e=>{if(isDragSeek)seekTo(e);},{passive:false});
-window.addEventListener('mouseup',   ()=>isDragSeek=false);
-window.addEventListener('touchend',  ()=>isDragSeek=false);
-window.addEventListener('touchcancel',()=>isDragSeek=false);
+window.addEventListener('mouseup',  ()=>isDragSeek=false);
+window.addEventListener('touchmove', ()=>isDragSeek=false);
+window.addEventListener('touchend',    ()=>isDragSeek=false);
+window.addEventListener('touchcancel', ()=>isDragSeek=false);
 
 // ════════════════════════════════════════════
 // MUTE
@@ -1426,21 +1413,29 @@ function addMarker(x,y,t) {
   showToast(`M${mkCount} を追加しました`,'var(--gold)');
   selectMarker(id, false);
 }
+function hideCommentModePopup() {
+  pendingMode = null;
+  $('cm-popup').classList.remove('show');
+}
 function deleteMarker(id) {
-  markers = markers.filter(m=>m.id!==id);
-  if(selMkId===id){selMkId=null; selBadge.classList.remove('show'); commentIn.classList.remove('mk');}
   hideCommentModePopup();
-  // 削除後に番号を1から振り直す
+  markers = markers.filter(m=>m.id!==id);
+  // 番号を1から振り直す
   markers.forEach((m,i)=>{ m.num = i+1; });
   mkCount = markers.length;
   mkJumpIdx = Math.min(mkJumpIdx, markers.length-1);
+  if(selMkId===id){selMkId=null; selBadge.classList.remove('show'); commentIn.classList.remove('mk'); commentIn.placeholder='コメント入力… (Enterで追加)';}
   mkBadge.textContent = markers.length;
   renderAll();
-  hideCommentModePopup(); // renderAll後も確実に閉じる
+  hideCommentModePopup();
 }
 function selectMarker(id, showPopup=true) {
+  hideCommentModePopup();
   selMkId = id;
-  hideCommentModePopup(); // マーカー切り替え時に前のポップアップを必ず閉じる
+  // mkJumpIdx を更新
+  const jumpIdx = markers.findIndex(x=>x.id===id);
+  if(jumpIdx>=0) mkJumpIdx = jumpIdx;
+  updateJumpLabel();
   const m = markers.find(x=>x.id===id); if(!m) return;
   badgeText.textContent = `M${m.num} にコメント追加中`;
   selBadge.classList.add('show');
@@ -1451,57 +1446,75 @@ function selectMarker(id, showPopup=true) {
   document.querySelectorAll('.vmarker-wrap').forEach(el =>
     el.classList.toggle('sel', +el.dataset.id===id)
   );
-  // コメントが既にある場合は追加/上書き選択ポップアップを表示
-  // マークジャンプ経由（showPopup=false）では出さない
+  // コメントありかつshowPopup=trueのときポップアップ表示
   if(showPopup && m.comments.length > 0) {
-    showCommentModePopup(m);
+    $('cm-popup-label').textContent = `M${m.num} コメントあり：`;
+    $('cm-popup').classList.add('show');
   }
-  // マークジャンプラベルを選択中マーカーに合わせる
-  const jumpIdx = markers.findIndex(x=>x.id===id);
-  if(jumpIdx >= 0) { mkJumpIdx = jumpIdx; updateJumpLabel(); }
 }
 badgeClear.addEventListener('click', () => {
+  hideCommentModePopup();
   selMkId=null; selBadge.classList.remove('show'); commentIn.classList.remove('mk');
   commentIn.placeholder='コメント入力… (Enterで追加)';
   document.querySelectorAll('.vmarker-wrap').forEach(el=>el.classList.remove('sel'));
 });
 
+// コメントモードポップアップ ボタン
+$('cm-btn-add').addEventListener('click', () => {
+  const m = markers.find(x=>x.id===selMkId);
+  if(m && m.comments.length > 0) {
+    commentIn.value = m.comments[0].text.replace(/^\[M\d+\] /, '').replace(/。$/, '');
+  }
+  pendingMode = 'add';
+  $('cm-popup').classList.remove('show');
+  startVoice();
+});
+$('cm-btn-over').addEventListener('click', () => {
+  commentIn.value = '';
+  pendingMode = 'over';
+  $('cm-popup').classList.remove('show');
+  startVoice();
+});
+$('cm-btn-cancel').addEventListener('click', () => {
+  hideCommentModePopup();
+});
+
 commentIn.addEventListener('keydown', e => { if(e.key==='Enter'){e.preventDefault();addComment();} });
 $('btn-enter').addEventListener('click', () => { addComment(); });
 function addComment() {
-  // Enter押下で録音中なら停止
-  if(isRecV){ recognition.stop(); stopRec(); }
-  const rawText=commentIn.value.trim(); if(!rawText) return;
-  const text = rawText.endsWith('。') ? rawText : rawText + '。';
+  // Enter時に録音中なら停止
+  if(isRecV) { if(recognition) recognition.stop(); stopRec(); }
+  // マーカー未選択時は何もしない
+  if(selMkId === null) { commentIn.value=''; return; }
+  const text = commentIn.value.trim(); if(!text) return;
+  const m = markers.find(x=>x.id===selMkId); if(!m) return;
+  // 末尾が「。」でなければ追加
+  const finalText = text.endsWith('。') ? text : text + '。';
   const t = vid.currentTime;
-  if(selMkId!==null){
-    const m=markers.find(x=>x.id===selMkId);
-    if(m){
-      // 追加・上書きモード → 既存コメント全削除して1件で上書き登録
-      if(pendingMode === 'add' || pendingMode === 'over') {
-        m.comments = [];
-        pendingMode = null;
-      }
-      const commentText = text.startsWith('[M') ? text : `[M${m.num}] ${text}`;
-      m.comments.push({id:Date.now(),text:commentText,tc:fmtTC(t),hms:fmtHMS(t),time:t});
-      commentIn.value='';
-      mkBadge.textContent = totalComments();
-      showToast(`M${m.num} にコメントを追加`,'var(--gold)');
-      commentModeBlocked = false;
-      renderAll();
-      return;
-    }
+  if(pendingMode === 'add') {
+    // 追加モード：既存を削除して既存+新を1件登録
+    const prev = m.comments.length > 0 ? m.comments[0].text.replace(/。$/, '') : '';
+    m.comments = [];
+    const combined = prev ? prev + '　' + finalText : finalText;
+    m.comments.push({id:Date.now(),text:`[M${m.num}] ${combined}`,tc:fmtTC(t),hms:fmtHMS(t),time:t});
+  } else if(pendingMode === 'over') {
+    // 上書きモード：既存を削除して新コメントのみ1件登録
+    m.comments = [];
+    m.comments.push({id:Date.now(),text:`[M${m.num}] ${finalText}`,tc:fmtTC(t),hms:fmtHMS(t),time:t});
+  } else {
+    // 通常モード
+    m.comments.push({id:Date.now(),text:`[M${m.num}] ${finalText}`,tc:fmtTC(t),hms:fmtHMS(t),time:t});
   }
-  // マーカー未選択時は入力文字を削除して何もしない
-  commentIn.value = '';
-}
+  hideCommentModePopup();
+  commentIn.value='';
+  renderAll();
+  mkBadge.textContent = totalComments();
+  showToast(`M${m.num} にコメントを追加`,'var(--gold)');
   selMkId=null;
   selBadge.classList.remove('show');
   commentIn.classList.remove('mk');
   commentIn.placeholder='コメント入力… (Enterで追加)';
   document.querySelectorAll('.vmarker-wrap').forEach(el=>el.classList.remove('sel'));
-  renderAll();
-  mkBadge.textContent = totalComments();
 }
 
 function totalComments() {
@@ -1683,51 +1696,6 @@ expSrt.addEventListener('click', ()=>doExport('srt'));
 cphClose.addEventListener('click', ()=>cpanel.classList.remove('open'));
 
 // ════════════════════════════════════════════
-// ════════════════════════════════════════════
-// COMMENT MODE POPUP（追加/上書き選択）
-// ════════════════════════════════════════════
-const commentModePopup = $('comment-mode-popup');
-let commentModeBlocked = false;
-let pendingMode = null; // 'add'=追加 'over'=上書き null=通常
-
-function showCommentModePopup(m) {
-  commentModeBlocked = true;
-  commentModePopup.classList.add('show');
-}
-function hideCommentModePopup() {
-  commentModeBlocked = false;
-  pendingMode = null;
-  commentModePopup.classList.remove('show');
-}
-
-$('cm-btn-cancel').addEventListener('click', () => {
-  hideCommentModePopup();
-  commentIn.value = '';
-});
-
-$('cm-btn-add').addEventListener('click', () => {
-  if(selMkId !== null) {
-    const m = markers.find(x=>x.id===selMkId);
-    if(m && m.comments.length > 0) {
-      const existing = m.comments.map(c=>c.text).join(' ');
-      commentIn.value = existing;
-    }
-  }
-  hideCommentModePopup();
-  pendingMode = 'add'; // hideの後にセット
-  if(!('ontouchstart' in window)) commentIn.focus();
-  startVoice();
-});
-
-$('cm-btn-over').addEventListener('click', () => {
-  hideCommentModePopup();
-  pendingMode = 'over';
-  commentIn.value = '';
-  if(!('ontouchstart' in window)) commentIn.focus();
-  startVoice();
-});
-
-// ════════════════════════════════════════════
 // VOICE INPUT
 // ════════════════════════════════════════════
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -1740,72 +1708,83 @@ const isSafari = /safari/i.test(_ua) && !isChromeBrowser;
 
 function createRecognition() {
   if(!SR || isSafari) return null;
-  const r = new SR();
-  r.lang='ja-JP'; r.continuous=true; r.interimResults=true;
-  r.onresult=e=>{
-    // isFinal=trueの確定結果のみcommentInに追加
-    let finalText = '';
-    for(let i=e.resultIndex; i<e.results.length; i++){
-      if(e.results[i].isFinal) finalText += e.results[i][0].transcript;
+  const rec = new SR();
+  rec.lang='ja-JP'; rec.continuous=true; rec.interimResults=true;
+  rec.onresult=e=>{
+    let final='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) final+=e.results[i][0].transcript;
     }
-    if(finalText) {
-      commentIn.value += (commentIn.value?' ':'')+finalText;
-    }
+    if(final) commentIn.value += (commentIn.value?' ':'')+final;
   };
-  r.onerror=e=>{
+  rec.onerror=e=>{
     stopRec();
     if(e.error==='not-allowed') showToast('マイクの許可が必要です','var(--red)');
     else if(e.error==='network') showToast('音声認識にはネット接続が必要です','var(--red)');
     else if(e.error==='aborted') { /* 正常終了のため無視 */ }
     else showToast('音声認識エラー: '+e.error,'var(--red)');
   };
-  r.onend=()=>{if(isRecV && recognition===r)stopRec();};
-  return r;
+  rec.onend=e=>{
+    // 同一オブジェクトのonendのみ処理
+    if(recognition===rec && isRecV) stopRec();
+  };
+  return rec;
 }
-// 初回生成
-if(SR && !isSafari) recognition = createRecognition();
 
 function stopRec(){isRecV=false;btnVoice.classList.remove('on');btnVoice.innerHTML='🎤 音声';}
 
-function startVoice() {
-  recognition = createRecognition();
-  if(!recognition) return;
+// マイク許可状態を確認してから録音開始
+let micPermissionGranted = false;
+async function startVoice() {
   try {
-    recognition.start();
+    if(!micPermissionGranted) {
+      if(navigator.permissions) {
+        try {
+          const perm = await navigator.permissions.query({ name:'microphone' });
+          if(perm.state === 'granted') micPermissionGranted = true;
+          else if(perm.state === 'denied') {
+            showToast('マイクの許可が必要です','var(--red)');
+            return;
+          }
+        } catch(e) { /* Permissions API非対応ブラウザは無視 */ }
+      }
+      if(!micPermissionGranted) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(t => t.stop());
+        micPermissionGranted = true;
+      }
+    }
+    // 毎回新規生成
+    recognition = createRecognition();
+    if(!recognition) return;
     isRecV=true;
     btnVoice.classList.add('on');
     btnVoice.innerHTML='⏹ 停止';
-  } catch(e) {
+    recognition.start();
+  } catch(err) {
     stopRec();
-    showToast('音声入力を開始できませんでした','var(--red)');
+    showToast('マイクにアクセスできません','var(--red)');
   }
 }
 
 btnVoice.addEventListener('click',()=>{
-  // Safariは非対応のためメッセージ表示
   if(isSafari || !SR){
     showToast('音声入力はChrome / Edgeをご使用ください','var(--blue)');
     return;
   }
-  // ポップアップ表示中は音声入力をブロック
-  if(commentModeBlocked){
-    showToast('追加 / 上書き を選択してください','var(--gold)');
-    return;
-  }
-  // マーカー未選択時は音声入力を無効
   if(selMkId === null){
     showToast('マーカーを選択してから音声入力してください','var(--gold)');
     return;
   }
-  // 録音中なら停止
-  if(isRecV){ recognition.stop(); stopRec(); return; }
-  // マーカーにコメントがあれば毎回ポップアップ表示
-  const _m = markers.find(x=>x.id===selMkId);
-  if(_m && _m.comments.length > 0){
-    showCommentModePopup(_m);
+  // コメントありならポップアップ表示
+  const m = markers.find(x=>x.id===selMkId);
+  if(m && m.comments.length > 0 && pendingMode===null) {
+    $('cm-popup-label').textContent = `M${m.num} コメントあり：`;
+    $('cm-popup').classList.add('show');
     return;
   }
-  startVoice();
+  if(isRecV){ if(recognition) recognition.stop(); stopRec(); }
+  else { startVoice(); }
 });
 
 // ════════════════════════════════════════════
