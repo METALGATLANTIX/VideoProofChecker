@@ -1474,6 +1474,11 @@ function addComment() {
         m.comments = [];
         overwriteOriginal = '';
       }
+      // 追加モード → 既存コメント全削除して「既存+新」1件で登録
+      if(isAddMode) {
+        m.comments = [];
+        isAddMode = false;
+      }
       const commentText = text.startsWith('[M') ? text : `[M${m.num}] ${text}`;
       m.comments.push({id:Date.now(),text:commentText,tc:fmtTC(t),hms:fmtHMS(t),time:t});
       commentIn.value='';
