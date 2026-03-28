@@ -1428,6 +1428,7 @@ function deleteMarker(id) {
   mkJumpIdx = Math.min(mkJumpIdx, markers.length-1);
   mkBadge.textContent = markers.length;
   renderAll();
+  hideCommentModePopup(); // renderAll後も確実に閉じる
 }
 function selectMarker(id, showPopup=true) {
   selMkId = id;
