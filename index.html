@@ -1344,7 +1344,9 @@ seekTrack.addEventListener('mousedown',  e=>{isDragSeek=true; seekTo(e);});
 seekTrack.addEventListener('touchstart', e=>{isDragSeek=true; seekTo(e);},{passive:false});
 window.addEventListener('mousemove', e=>{if(isDragSeek)seekTo(e);});
 window.addEventListener('touchmove', e=>{if(isDragSeek)seekTo(e);},{passive:false});
-window.addEventListener('mouseup',  ()=>isDragSeek=false);
+window.addEventListener('mouseup',   ()=>isDragSeek=false);
+window.addEventListener('touchend',  ()=>isDragSeek=false);
+window.addEventListener('touchcancel',()=>isDragSeek=false);
 
 // ════════════════════════════════════════════
 // MUTE
@@ -1462,6 +1464,11 @@ function addComment() {
       if(!isOverwriteMode && overwriteOriginal) {
         m.comments = [];
         overwriteOriginal = '';
+      }
+      // 追加モード → 既存コメント全削除して「既存+新」1件で上書き登録
+      if(isAddMode) {
+        m.comments = [];
+        isAddMode = false;
       }
       m.comments.push({id:Date.now(),text:`[M${m.num}] ${text}`,tc:fmtTC(t),hms:fmtHMS(t),time:t});
       commentIn.value='';
@@ -1671,9 +1678,10 @@ cphClose.addEventListener('click', ()=>cpanel.classList.remove('open'));
 // COMMENT MODE POPUP（追加/上書き選択）
 // ════════════════════════════════════════════
 const commentModePopup = $('comment-mode-popup');
-let commentModeBlocked = false; // ポップアップ表示中は音声をブロック
-let isOverwriteMode = false;    // 上書きモード
-let overwriteOriginal = '';     // 上書き前の元コメント
+let commentModeBlocked = false;
+let isOverwriteMode = false;
+let overwriteOriginal = '';
+let isAddMode = false; // 追加モード
 
 function showCommentModePopup(m) {
   commentModeBlocked = true;
@@ -1685,14 +1693,12 @@ function hideCommentModePopup() {
 }
 
 $('cm-btn-add').addEventListener('click', () => {
-  // 追加：既存コメントをcommentIn欄に表示してから音声入力
-  // 音声入力後は「既存コメント + スペース + 新コメント」になる
   if(selMkId !== null) {
     const m = markers.find(x=>x.id===selMkId);
     if(m && m.comments.length > 0) {
-      // 既存コメントを結合してcommentIn欄に表示
       const existing = m.comments.map(c=>c.text).join(' ');
       commentIn.value = existing;
+      isAddMode = true; // 追加モードON
     }
   }
   hideCommentModePopup();
