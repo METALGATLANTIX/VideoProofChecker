@@ -1461,7 +1461,7 @@ function addComment() {
     const m=markers.find(x=>x.id===selMkId);
     if(m){
       // 上書きモードでEnterのみ（元コメントと同じ）→変更なし
-      if(isOverwriteMode && text === overwriteOriginal.trim()) {
+      if(isOverwriteMode && text === overwriteOriginal.trim()+'。') {
         isOverwriteMode = false;
         overwriteOriginal = '';
         commentIn.value = '';
@@ -1469,15 +1469,12 @@ function addComment() {
         renderAll();
         return;
       }
-      // 上書きモードで音声入力済み → 既存コメント全削除して新コメント登録
-      if(!isOverwriteMode && overwriteOriginal) {
-        m.comments = [];
-        overwriteOriginal = '';
-      }
-      // 追加モード → 既存コメント全削除して「既存+新」1件で登録
-      if(isAddMode) {
+      // 追加モード・上書きモード → 既存コメント全削除して1件で上書き登録
+      if(isAddMode || isOverwriteMode || overwriteOriginal) {
         m.comments = [];
         isAddMode = false;
+        isOverwriteMode = false;
+        overwriteOriginal = '';
       }
       const commentText = text.startsWith('[M') ? text : `[M${m.num}] ${text}`;
       m.comments.push({id:Date.now(),text:commentText,tc:fmtTC(t),hms:fmtHMS(t),time:t});
