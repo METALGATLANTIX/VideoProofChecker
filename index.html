@@ -1419,7 +1419,6 @@ function addMarker(x,y,t) {
 function hideCommentModePopup() {
   pendingMode = null;
   $('cm-popup').classList.remove('show');
-  commentIn.readOnly = false;
 }
 function deleteMarker(id) {
   hideCommentModePopup();
@@ -1454,7 +1453,6 @@ function selectMarker(id, showPopup=true) {
   if(showPopup && m.comments.length > 0) {
     $('cm-popup-label').textContent = `M${m.num} コメントあり：`;
     $('cm-popup').classList.add('show');
-    commentIn.readOnly = true;
   }
 }
 badgeClear.addEventListener('click', () => {
@@ -1468,19 +1466,17 @@ badgeClear.addEventListener('click', () => {
 $('cm-btn-add').addEventListener('click', () => {
   const m = markers.find(x=>x.id===selMkId);
   if(m && m.comments.length > 0) {
-    commentIn.value = m.comments[0].text.replace(/^\[M\d+\] /, '');
+    commentIn.value = m.comments[0].text.replace(/^\[M\d+\] /, '').replace(/。$/, '');
   }
   pendingMode = 'add';
   $('cm-popup').classList.remove('show');
   commentIn.readOnly = false;
-  startVoice();
 });
 $('cm-btn-over').addEventListener('click', () => {
   commentIn.value = '';
   pendingMode = 'over';
   $('cm-popup').classList.remove('show');
   commentIn.readOnly = false;
-  startVoice();
 });
 $('cm-btn-cancel').addEventListener('click', () => {
   hideCommentModePopup();
@@ -1499,9 +1495,11 @@ function addComment() {
   const finalText = text.endsWith('。') ? text : text + '。';
   const t = vid.currentTime;
   if(pendingMode === 'add') {
-    // 追加モード：commentInには「既存。新テキスト」が入っている→既存削除して1件登録
+    // 追加モード：既存を削除して既存+新を1件登録
+    const prev = m.comments.length > 0 ? m.comments[0].text.replace(/^\[M\d+\] /, '').replace(/。$/, '') : '';
     m.comments = [];
-    m.comments.push({id:Date.now(),text:`[M${m.num}] ${finalText}`,tc:fmtTC(t),hms:fmtHMS(t),time:t});
+    const combined = prev ? prev + '　' + finalText : finalText;
+    m.comments.push({id:Date.now(),text:`[M${m.num}] ${combined}`,tc:fmtTC(t),hms:fmtHMS(t),time:t});
   } else if(pendingMode === 'over') {
     // 上書きモード：既存を削除して新コメントのみ1件登録
     m.comments = [];
@@ -1786,7 +1784,6 @@ btnVoice.addEventListener('click',()=>{
   if(m && m.comments.length > 0 && pendingMode===null) {
     $('cm-popup-label').textContent = `M${m.num} コメントあり：`;
     $('cm-popup').classList.add('show');
-    commentIn.readOnly = true;
     return;
   }
   if(isRecV){ if(recognition) recognition.stop(); stopRec(); }
