@@ -307,6 +307,10 @@ html,body {
 }
 #sel-badge.show { display:flex; }
 #comment-row { display:flex; gap:6px; align-items:center; }
+/* PC：入力枠→Enter→音声 の順に表示 */
+#comment-input { order:1; }
+#btn-enter     { order:2; }
+#btn-voice     { order:3; }
 
 /* Enterボタン（音声ボタンと同じスタイル） */
 #btn-enter {
@@ -583,6 +587,10 @@ html,body {
   #btn-enter   { padding: 0 8px; height: 26px; font-size: .62rem; }
   #comment-input { height: 26px; font-size: .72rem; padding: 2px 7px; }
   #comment-row { gap: 3px; }
+  /* スマホ：元の並び順（Enter→入力枠→音声）に戻す */
+  #btn-enter     { order:1; }
+  #comment-input { order:2; }
+  #btn-voice     { order:3; }
   #mk-jump-prev, #mk-jump-next { width: 22px; height: 22px; font-size: .72rem; }
   #mk-jump-label { font-size: .65rem; padding: 2px 5px; }
   #seek-track { height: 20px; }
@@ -789,7 +797,7 @@ html,body {
         <table class="h-table">
           <tr><th>操作</th><th>方法</th></tr>
           <tr><td>コメントを追加</td><td>下部テキスト欄に入力して <span class="h-key">Enter</span></td></tr>
-          <tr><td>音声入力</td><td>マーカーを選択後「🎤 音声」ボタンを押して話す（Chrome / Edge 推奨）。マイク確認が表示された場合は許可後そのまま話すとコメント欄に入力されます</td></tr>
+          <tr><td>音声入力</td><td>マーカーを選択後「🎤 音声」ボタンを押して話す（Chrome / Edge 推奨）。マイク確認が表示された場合は許可後そのまま話すとコメント欄に入力されます。話し終わったら「↵ Enter」ボタンまたはEnterキーを押して登録してください</td></tr>
           <tr><td>コメント一覧を見る</td><td>右上の丸ボタン（数字バッジ）をクリック</td></tr>
           <tr><td>コメントを削除</td><td>一覧上のコメントにマウスを乗せると右上に ✕ が表示される</td></tr>
         </table>
