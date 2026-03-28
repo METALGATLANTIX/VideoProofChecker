@@ -1330,8 +1330,8 @@ setSpeed(1.0);
 function updateSeek() {
   if(!vid.duration) return;
   const p = (vid.currentTime/vid.duration)*100;
-  seekFill.style.width = p+'%';
   const tw = seekTrack.clientWidth-24;
+  seekFill.style.width = (p/100)*tw+'px';
   seekThumb.style.left = (12+(p/100)*tw)+'px';
 }
 function seekTo(e) {
