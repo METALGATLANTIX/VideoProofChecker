@@ -1460,29 +1460,16 @@ function addComment() {
   if(selMkId!==null){
     const m=markers.find(x=>x.id===selMkId);
     if(m){
-      // 上書きモードでEnterのみ（元コメントと同じ）→変更なし
-      if(isOverwriteMode && text === overwriteOriginal.trim()+'。') {
-        isOverwriteMode = false;
-        overwriteOriginal = '';
-        commentIn.value = '';
-        commentModeBlocked = false;
-        renderAll();
-        return;
-      }
-      // 追加モード・上書きモード → 既存コメント全削除して1件で上書き登録
-      if(isAddMode || isOverwriteMode || overwriteOriginal) {
+      // 追加・上書きモード → 既存コメント全削除して1件で上書き登録
+      if(pendingMode === 'add' || pendingMode === 'over') {
         m.comments = [];
-        isAddMode = false;
-        isOverwriteMode = false;
-        overwriteOriginal = '';
+        pendingMode = null;
       }
       const commentText = text.startsWith('[M') ? text : `[M${m.num}] ${text}`;
       m.comments.push({id:Date.now(),text:commentText,tc:fmtTC(t),hms:fmtHMS(t),time:t});
       commentIn.value='';
       mkBadge.textContent = totalComments();
       showToast(`M${m.num} にコメントを追加`,'var(--gold)');
-      isOverwriteMode = false;
-      overwriteOriginal = '';
       commentModeBlocked = false;
       renderAll();
       return;
@@ -1685,9 +1672,8 @@ cphClose.addEventListener('click', ()=>cpanel.classList.remove('open'));
 // COMMENT MODE POPUP（追加/上書き選択）
 // ════════════════════════════════════════════
 const commentModePopup = $('comment-mode-popup');
-let commentModeBlocked = false; // ポップアップ表示中は音声をブロック
-let isOverwriteMode = false;    // 上書きモード
-let overwriteOriginal = '';     // 上書き前の元コメント
+let commentModeBlocked = false;
+let pendingMode = null; // 'add'=追加 'over'=上書き null=通常
 
 function showCommentModePopup(m) {
   commentModeBlocked = true;
@@ -1695,9 +1681,7 @@ function showCommentModePopup(m) {
 }
 function hideCommentModePopup() {
   commentModeBlocked = false;
-  isAddMode = false;
-  isOverwriteMode = false;
-  overwriteOriginal = '';
+  pendingMode = null;
   commentModePopup.classList.remove('show');
 }
 
@@ -1715,25 +1699,20 @@ $('cm-btn-add').addEventListener('click', () => {
     }
   }
   hideCommentModePopup();
-  isAddMode = true; // hideの後にセット（hideでリセットされるため）
+  pendingMode = 'add'; // hideの後にセット
   if(!('ontouchstart' in window)) commentIn.focus();
   startVoice();
 });
 
 $('cm-btn-over').addEventListener('click', () => {
-  // 上書き：既存コメントをcommentIn欄に表示
-  // 音声入力後は新コメントで全て置き換え
-  // Enterのみ押した場合は変更なし（既存コメントのまま）
   if(selMkId !== null) {
     const m = markers.find(x=>x.id===selMkId);
     if(m && m.comments.length > 0) {
-      const existing = m.comments.map(c=>c.text).join(' ');
-      commentIn.value = existing;
-      isOverwriteMode = true; // 上書きモードON
-      overwriteOriginal = existing; // 元のコメントを記憶
+      commentIn.value = m.comments.map(c=>c.text).join(' ');
     }
   }
   hideCommentModePopup();
+  pendingMode = 'over'; // hideの後にセット
   if(!('ontouchstart' in window)) commentIn.focus();
   startVoice();
 });
@@ -1760,10 +1739,11 @@ function createRecognition() {
       if(e.results[i].isFinal) finalText += e.results[i][0].transcript;
     }
     if(finalText) {
-      if(isOverwriteMode) {
+      if(pendingMode === 'over') {
+        // 上書き：音声で完全置き換え
         commentIn.value = finalText;
-        isOverwriteMode = false;
       } else {
+        // 通常・追加：末尾に追加（追加時は既存コメントの後ろに付く）
         commentIn.value += (commentIn.value?' ':'')+finalText;
       }
     }
