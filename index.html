@@ -1705,14 +1705,9 @@ $('cm-btn-add').addEventListener('click', () => {
 });
 
 $('cm-btn-over').addEventListener('click', () => {
-  if(selMkId !== null) {
-    const m = markers.find(x=>x.id===selMkId);
-    if(m && m.comments.length > 0) {
-      commentIn.value = m.comments.map(c=>c.text).join(' ');
-    }
-  }
   hideCommentModePopup();
-  pendingMode = 'over'; // hideの後にセット
+  pendingMode = 'over';
+  commentIn.value = '';
   if(!('ontouchstart' in window)) commentIn.focus();
   startVoice();
 });
@@ -1739,13 +1734,7 @@ function createRecognition() {
       if(e.results[i].isFinal) finalText += e.results[i][0].transcript;
     }
     if(finalText) {
-      if(pendingMode === 'over') {
-        // 上書き：音声で完全置き換え
-        commentIn.value = finalText;
-      } else {
-        // 通常・追加：末尾に追加（追加時は既存コメントの後ろに付く）
-        commentIn.value += (commentIn.value?' ':'')+finalText;
-      }
+      commentIn.value += (commentIn.value?' ':'')+finalText;
     }
   };
   r.onerror=e=>{
