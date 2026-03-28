@@ -174,7 +174,7 @@ html,body {
   display: flex; align-items: center; gap: 8px; padding: 8px 10px;
 }
 
-.jog-wrap { position:relative; flex-shrink:0; }
+.jog-wrap { position:relative; flex-shrink:0; width:140px; height:140px; }
 .jog-canvas { display:block; border-radius:50%; outline:none; pointer-events:none; width:140px; height:140px; }
 .jog-overlay {
   position:absolute; top:0; left:0;
@@ -1880,7 +1880,8 @@ document.addEventListener('mousedown', function(e) {
       el !== document.body &&
       el !== document.documentElement &&
       el.tagName !== 'INPUT' &&
-      el.tagName !== 'TEXTAREA') {
+      el.tagName !== 'TEXTAREA' &&
+      el.tagName !== 'CANVAS') {
     el.blur();
   }
   requestAnimationFrame(removeFocusRing);
