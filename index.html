@@ -337,8 +337,11 @@ html,body {
   transition:all .15s; white-space:nowrap;
 }
 #btn-enter:hover { border-color:var(--acc); color:var(--acc); }
-/* PC: Enter は入力枠と音声の間（HTML順のまま）*/
-/* スマホ: 入力枠→Enter→音声 の順にする */
+/* PC: 入力枠→Enter→音声 の順 */
+#comment-input { order:1; }
+#btn-enter     { order:2; }
+#btn-voice     { order:3; }
+/* スマホ: 入力枠→Enter→音声 の順（同じ） */
 @media (max-width: 600px) {
   #comment-input { order:1; }
   #btn-enter     { order:2; }
