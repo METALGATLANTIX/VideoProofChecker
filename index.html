@@ -1407,7 +1407,7 @@ function addMarker(x,y,t) {
   mkBadge.textContent = markers.length;
   renderAll();
   showToast(`M${mkCount} を追加しました`,'var(--gold)');
-  selectMarker(id);
+  selectMarker(id, false);
 }
 function deleteMarker(id) {
   markers = markers.filter(m=>m.id!==id);
@@ -1415,7 +1415,7 @@ function deleteMarker(id) {
   mkBadge.textContent = markers.length;
   renderAll();
 }
-function selectMarker(id) {
+function selectMarker(id, showPopup=true) {
   selMkId = id;
   const m = markers.find(x=>x.id===id); if(!m) return;
   badgeText.textContent = `M${m.num} にコメント追加中`;
@@ -1428,7 +1428,8 @@ function selectMarker(id) {
     el.classList.toggle('sel', +el.dataset.id===id)
   );
   // コメントが既にある場合は追加/上書き選択ポップアップを表示
-  if(m.comments.length > 0) {
+  // マークジャンプ経由（showPopup=false）では出さない
+  if(showPopup && m.comments.length > 0) {
     showCommentModePopup(m);
   }
 }
@@ -1447,24 +1448,20 @@ function addComment() {
     const m=markers.find(x=>x.id===selMkId);
     if(m){
       m.comments.push({id:Date.now(),text:`[M${m.num}] ${text}`,tc:fmtTC(t),hms:fmtHMS(t),time:t});
-      commentIn.value=''; renderAll();
+      commentIn.value='';
       mkBadge.textContent = totalComments();
       showToast(`M${m.num} にコメントを追加`,'var(--gold)');
-      selMkId=null;
-      selBadge.classList.remove('show');
-      commentIn.classList.remove('mk');
-      commentIn.placeholder='コメント入力… (Enterで追加)';
-      document.querySelectorAll('.vmarker-wrap').forEach(el=>el.classList.remove('sel'));
+      // selMkIdは維持（連続入力できるように）
+      // コメント欄のみクリアしてすぐ次の入力を受け付ける
+      renderAll();
       return;
     }
   }
   if(!markers.length) markers.push({id:Date.now(),num:++mkCount,time:t,x:null,y:null,comments:[]});
   const last=markers[markers.length-1];
-  // M番号をテキストに付与してマーカー一覧と一致させる
   const commentText = text.startsWith('[M') ? text : `[M${last.num}] ${text}`;
   last.comments.push({id:Date.now(),text:commentText,tc:fmtTC(t),hms:fmtHMS(t),time:t});
   commentIn.value='';
-  // selMkId を確実にリセット
   selMkId=null;
   selBadge.classList.remove('show');
   commentIn.classList.remove('mk');
@@ -1578,21 +1575,21 @@ $('mk-jump-prev').addEventListener('click', () => {
   if(!markers.length) return;
   mkJumpIdx = mkJumpIdx <= 0 ? markers.length-1 : mkJumpIdx-1;
   if(vid.src) vid.currentTime = markers[mkJumpIdx].time;
-  selectMarker(markers[mkJumpIdx].id);
+  selectMarker(markers[mkJumpIdx].id, false);
   updateJumpLabel();
 });
 $('mk-jump-next').addEventListener('click', () => {
   if(!markers.length) return;
   mkJumpIdx = (mkJumpIdx+1) % markers.length;
   if(vid.src) vid.currentTime = markers[mkJumpIdx].time;
-  selectMarker(markers[mkJumpIdx].id);
+  selectMarker(markers[mkJumpIdx].id, false);
   updateJumpLabel();
 });
 $('mk-jump-label').addEventListener('click', () => {
   if(!markers.length) return;
   const idx = mkJumpIdx < 0 ? 0 : mkJumpIdx;
   if(vid.src) vid.currentTime = markers[idx].time;
-  selectMarker(markers[idx].id);
+  selectMarker(markers[idx].id, false);
 });
 function deleteComment(cid) {
   markers.forEach(m=>{m.comments=m.comments.filter(c=>c.id!==cid);});
