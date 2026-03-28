@@ -1421,6 +1421,7 @@ function addMarker(x,y,t) {
 function deleteMarker(id) {
   markers = markers.filter(m=>m.id!==id);
   if(selMkId===id){selMkId=null; selBadge.classList.remove('show'); commentIn.classList.remove('mk');}
+  hideCommentModePopup();
   // 削除後に番号を1から振り直す
   markers.forEach((m,i)=>{ m.num = i+1; });
   mkCount = markers.length;
