@@ -474,6 +474,7 @@ html,body {
   scrollbar-width:thin; scrollbar-color:var(--border) transparent;
   flex:1; min-height:0;
   -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;
 }
 .h-section { margin-bottom:22px; }
 .h-section-title {
@@ -758,7 +759,7 @@ html,body {
         <table class="h-table">
           <tr><th>操作</th><th>方法</th></tr>
           <tr><td>コメントを追加</td><td>下部テキスト欄に入力して <span class="h-key">Enter</span></td></tr>
-          <tr><td>音声入力</td><td>「🎤 音声」ボタンを押して話す（Chrome / Edge 推奨）</td></tr>
+          <tr><td>音声入力</td><td>マーカーを選択後「🎤 音声」ボタンを押して話す（Chrome / Edge 推奨）。マイク確認が表示された場合は許可後そのまま話すとコメント欄に入力されます</td></tr>
           <tr><td>コメント一覧を見る</td><td>右上の丸ボタン（数字バッジ）をクリック</td></tr>
           <tr><td>コメントを削除</td><td>一覧上のコメントにマウスを乗せると右上に ✕ が表示される</td></tr>
         </table>
@@ -1313,7 +1314,6 @@ seekTrack.addEventListener('touchstart', e=>{isDragSeek=true; seekTo(e);},{passi
 window.addEventListener('mousemove', e=>{if(isDragSeek)seekTo(e);});
 window.addEventListener('touchmove', e=>{if(isDragSeek)seekTo(e);},{passive:false});
 window.addEventListener('mouseup',  ()=>isDragSeek=false);
-window.addEventListener('touchmove', ()=>isDragSeek=false);
 
 // ════════════════════════════════════════════
 // MUTE
@@ -1371,10 +1371,12 @@ markersOv.addEventListener('dblclick', e => {
 
 function addMarker(x,y,t) {
   mkCount++;
-  markers.push({id:Date.now(),num:mkCount,time:t,x,y,comments:[]});
+  const id = Date.now();
+  markers.push({id,num:mkCount,time:t,x,y,comments:[]});
   mkBadge.textContent = markers.length;
   renderAll();
   showToast(`M${mkCount} を追加しました`,'var(--gold)');
+  selectMarker(id);
 }
 function deleteMarker(id) {
   markers = markers.filter(m=>m.id!==id);
@@ -1633,8 +1635,6 @@ if(SR && !isSafari){
     const text = e.results[0][0].transcript;
     if(text) commentIn.value += (commentIn.value?' ':'')+text;
     stopRec();
-    // マーカー選択中のみ自動登録。未選択時はテキストを入れるだけ
-    if(selMkId !== null) addComment();
   };
   recognition.onerror=e=>{
     stopRec();
@@ -1647,38 +1647,11 @@ if(SR && !isSafari){
 }
 function stopRec(){isRecV=false;btnVoice.classList.remove('on');btnVoice.innerHTML='🎤 音声';}
 
-// マイク許可状態を確認してから録音開始
-// micPermissionGrantedを関数外で保持→初回のみダイアログ表示
-let micPermissionGranted = false;
-async function startVoice() {
-  try {
-    if(!micPermissionGranted) {
-      if(navigator.permissions) {
-        try {
-          const perm = await navigator.permissions.query({ name:'microphone' });
-          if(perm.state === 'granted') micPermissionGranted = true;
-          else if(perm.state === 'denied') {
-            showToast('マイクの許可が必要です','var(--red)');
-            return;
-          }
-        } catch(e) { /* Permissions API非対応ブラウザは無視 */ }
-      }
-      // 未確認の場合のみgetUserMediaでダイアログ表示→即ストリーム解放
-      if(!micPermissionGranted) {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach(t => t.stop());
-        micPermissionGranted = true; // 許可済みとして記録
-      }
-    }
-    // 録音開始
-    isRecV=true;
-    btnVoice.classList.add('on');
-    btnVoice.innerHTML='⏹ 停止';
-    recognition.start();
-  } catch(err) {
-    stopRec();
-    showToast('マイクにアクセスできません','var(--red)');
-  }
+function startVoice() {
+  isRecV=true;
+  btnVoice.classList.add('on');
+  btnVoice.innerHTML='⏹ 停止';
+  recognition.start();
 }
 
 btnVoice.addEventListener('click',()=>{
