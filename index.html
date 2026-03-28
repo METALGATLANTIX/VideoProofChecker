@@ -1496,7 +1496,7 @@ function addComment() {
   const t = vid.currentTime;
   if(pendingMode === 'add') {
     // 追加モード：既存を削除して既存+新を1件登録
-    const prev = m.comments.length > 0 ? m.comments[0].text.replace(/。$/, '') : '';
+    const prev = m.comments.length > 0 ? m.comments[0].text.replace(/^\[M\d+\] /, '').replace(/。$/, '') : '';
     m.comments = [];
     const combined = prev ? prev + '　' + finalText : finalText;
     m.comments.push({id:Date.now(),text:`[M${m.num}] ${combined}`,tc:fmtTC(t),hms:fmtHMS(t),time:t});
