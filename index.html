@@ -1442,6 +1442,8 @@ badgeClear.addEventListener('click', () => {
 commentIn.addEventListener('keydown', e => { if(e.key==='Enter'){e.preventDefault();addComment();} });
 $('btn-enter').addEventListener('click', () => { addComment(); });
 function addComment() {
+  // Enter押下で録音中なら停止
+  if(isRecV){ recognition.stop(); stopRec(); }
   const text=commentIn.value.trim(); if(!text) return;
   const t = vid.currentTime;
   if(selMkId!==null){
@@ -1730,20 +1732,21 @@ const isSafari = /safari/i.test(_ua) && !isChromeBrowser;
 function createRecognition() {
   if(!SR || isSafari) return null;
   const r = new SR();
-  r.lang='ja-JP'; r.continuous=false; r.interimResults=false;
+  r.lang='ja-JP'; r.continuous=true; r.interimResults=true;
   r.onresult=e=>{
-    const text = e.results[0][0].transcript;
-    if(text) {
+    // isFinal=trueの確定結果のみcommentInに追加
+    let finalText = '';
+    for(let i=e.resultIndex; i<e.results.length; i++){
+      if(e.results[i].isFinal) finalText += e.results[i][0].transcript;
+    }
+    if(finalText) {
       if(isOverwriteMode) {
-        // 上書きモード：音声で完全置き換え
-        commentIn.value = text;
+        commentIn.value = finalText;
         isOverwriteMode = false;
       } else {
-        // 通常・追加モード：末尾に追加
-        commentIn.value += (commentIn.value?' ':'')+text;
+        commentIn.value += (commentIn.value?' ':'')+finalText;
       }
     }
-    stopRec();
   };
   r.onerror=e=>{
     stopRec();
@@ -1761,27 +1764,17 @@ if(SR && !isSafari) recognition = createRecognition();
 function stopRec(){isRecV=false;btnVoice.classList.remove('on');btnVoice.innerHTML='🎤 音声';}
 
 function startVoice() {
-  // 毎回新しいrecognitionを生成（2回目以降もonresultが正しく発火するように）
   recognition = createRecognition();
   if(!recognition) return;
-  // マイク許可を事前確認（初回ダイアログ中にrecognitionが中断するのを防ぐ）
-  navigator.mediaDevices.getUserMedia({audio:true})
-    .then(stream => {
-      stream.getTracks().forEach(t=>t.stop()); // 即解放
-      try {
-        recognition.start();
-        isRecV=true;
-        btnVoice.classList.add('on');
-        btnVoice.innerHTML='⏹ 停止';
-      } catch(e) {
-        stopRec();
-        showToast('音声入力を開始できませんでした','var(--red)');
-      }
-    })
-    .catch(() => {
-      stopRec();
-      showToast('マイクの許可が必要です','var(--red)');
-    });
+  try {
+    recognition.start();
+    isRecV=true;
+    btnVoice.classList.add('on');
+    btnVoice.innerHTML='⏹ 停止';
+  } catch(e) {
+    stopRec();
+    showToast('音声入力を開始できませんでした','var(--red)');
+  }
 }
 
 btnVoice.addEventListener('click',()=>{
