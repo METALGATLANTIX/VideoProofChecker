@@ -1466,7 +1466,7 @@ badgeClear.addEventListener('click', () => {
 $('cm-btn-add').addEventListener('click', () => {
   const m = markers.find(x=>x.id===selMkId);
   if(m && m.comments.length > 0) {
-    commentIn.value = m.comments[0].text.replace(/^\[M\d+\] /, '').replace(/。$/, '');
+    commentIn.value = m.comments[0].text.replace(/^\[M\d+\] /, '');
   }
   pendingMode = 'add';
   $('cm-popup').classList.remove('show');
@@ -1496,9 +1496,9 @@ function addComment() {
   const t = vid.currentTime;
   if(pendingMode === 'add') {
     // 追加モード：既存を削除して既存+新を1件登録
-    const prev = m.comments.length > 0 ? m.comments[0].text.replace(/^\[M\d+\] /, '').replace(/。$/, '') : '';
+    const prev = m.comments.length > 0 ? m.comments[0].text.replace(/^\[M\d+\] /, '') : '';
     m.comments = [];
-    const combined = prev ? prev + '　' + finalText : finalText;
+    const combined = prev ? prev + finalText : finalText;
     m.comments.push({id:Date.now(),text:`[M${m.num}] ${combined}`,tc:fmtTC(t),hms:fmtHMS(t),time:t});
   } else if(pendingMode === 'over') {
     // 上書きモード：既存を削除して新コメントのみ1件登録
