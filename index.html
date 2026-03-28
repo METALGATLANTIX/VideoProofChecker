@@ -1667,14 +1667,14 @@ function hideCommentModePopup() {
 }
 
 $('cm-btn-add').addEventListener('click', () => {
-  // 追加：現在のcommentIn.valueはそのまま・入力受付
   hideCommentModePopup();
   commentIn.value = '';
   if(!('ontouchstart' in window)) commentIn.focus();
+  // 音声入力を自動開始
+  startVoice();
 });
 
 $('cm-btn-over').addEventListener('click', () => {
-  // 上書き：対象マーカーの既存コメントを削除してから入力受付
   if(selMkId !== null) {
     const m = markers.find(x=>x.id===selMkId);
     if(m) {
@@ -1686,6 +1686,8 @@ $('cm-btn-over').addEventListener('click', () => {
   hideCommentModePopup();
   commentIn.value = '';
   if(!('ontouchstart' in window)) commentIn.focus();
+  // 音声入力を自動開始
+  startVoice();
 });
 
 // ════════════════════════════════════════════
@@ -1727,15 +1729,24 @@ function startVoice() {
   // 毎回新しいrecognitionを生成（2回目以降もonresultが正しく発火するように）
   recognition = createRecognition();
   if(!recognition) return;
-  try {
-    recognition.start();
-    isRecV=true;
-    btnVoice.classList.add('on');
-    btnVoice.innerHTML='⏹ 停止';
-  } catch(e) {
-    stopRec();
-    showToast('音声入力を開始できませんでした','var(--red)');
-  }
+  // マイク許可を事前確認（初回ダイアログ中にrecognitionが中断するのを防ぐ）
+  navigator.mediaDevices.getUserMedia({audio:true})
+    .then(stream => {
+      stream.getTracks().forEach(t=>t.stop()); // 即解放
+      try {
+        recognition.start();
+        isRecV=true;
+        btnVoice.classList.add('on');
+        btnVoice.innerHTML='⏹ 停止';
+      } catch(e) {
+        stopRec();
+        showToast('音声入力を開始できませんでした','var(--red)');
+      }
+    })
+    .catch(() => {
+      stopRec();
+      showToast('マイクの許可が必要です','var(--red)');
+    });
 }
 
 btnVoice.addEventListener('click',()=>{
@@ -1754,8 +1765,15 @@ btnVoice.addEventListener('click',()=>{
     showToast('マーカーを選択してから音声入力してください','var(--gold)');
     return;
   }
-  if(isRecV){ recognition.stop(); stopRec(); }
-  else { startVoice(); }
+  // 録音中なら停止
+  if(isRecV){ recognition.stop(); stopRec(); return; }
+  // マーカーにコメントがあれば毎回ポップアップ表示
+  const _m = markers.find(x=>x.id===selMkId);
+  if(_m && _m.comments.length > 0){
+    showCommentModePopup(_m);
+    return;
+  }
+  startVoice();
 });
 
 // ════════════════════════════════════════════
