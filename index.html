@@ -136,7 +136,7 @@ html,body {
   letter-spacing: .12em; padding: 8px 20px; border-radius: 6px;
   border: 2px solid rgba(255,255,255,.28); cursor: move; line-height: 1.4;
   transition: border-color .2s, box-shadow .2s; user-select:none;
-  touch-action: none;
+  touch-action: none; -webkit-touch-callout: none;
 }
 #tc-overlay:hover { border-color:rgba(255,255,255,.5); }
 #tc-overlay.tc-holding {
@@ -443,6 +443,12 @@ html,body {
   font-family:var(--ui); font-weight:700; font-size:.82rem;
   color:var(--gold); margin-bottom:12px; letter-spacing:.08em;
 }
+#cm-btn-cancel {
+  position:absolute; top:6px; right:8px;
+  cursor:pointer; color:var(--muted); font-size:1rem;
+  padding:2px 6px; border-radius:3px; transition:color .15s;
+}
+#cm-btn-cancel:hover { color:var(--text); }
 #comment-mode-btns { display:flex; gap:8px; justify-content:center; }
 .cm-btn {
   flex:1; padding:7px 0;
@@ -819,6 +825,7 @@ html,body {
 </div>
 
 <div id="comment-mode-popup">
+  <span id="cm-btn-cancel">✕</span>
   <div id="comment-mode-title">コメントが既に入力されています</div>
   <div id="comment-mode-btns">
     <div class="cm-btn add"  id="cm-btn-add">➕ 追加</div>
@@ -1419,6 +1426,7 @@ function deleteMarker(id) {
 }
 function selectMarker(id, showPopup=true) {
   selMkId = id;
+  hideCommentModePopup(); // マーカー切り替え時に前のポップアップを必ず閉じる
   const m = markers.find(x=>x.id===id); if(!m) return;
   badgeText.textContent = `M${m.num} にコメント追加中`;
   selBadge.classList.add('show');
@@ -1446,7 +1454,8 @@ $('btn-enter').addEventListener('click', () => { addComment(); });
 function addComment() {
   // Enter押下で録音中なら停止
   if(isRecV){ recognition.stop(); stopRec(); }
-  const text=commentIn.value.trim(); if(!text) return;
+  const rawText=commentIn.value.trim(); if(!rawText) return;
+  const text = rawText.endsWith('。') ? rawText : rawText + '。';
   const t = vid.currentTime;
   if(selMkId!==null){
     const m=markers.find(x=>x.id===selMkId);
@@ -1465,12 +1474,8 @@ function addComment() {
         m.comments = [];
         overwriteOriginal = '';
       }
-      // 追加モード → 既存コメント全削除して「既存+新」1件で上書き登録
-      if(isAddMode) {
-        m.comments = [];
-        isAddMode = false;
-      }
-      m.comments.push({id:Date.now(),text:`[M${m.num}] ${text}`,tc:fmtTC(t),hms:fmtHMS(t),time:t});
+      const commentText = text.startsWith('[M') ? text : `[M${m.num}] ${text}`;
+      m.comments.push({id:Date.now(),text:commentText,tc:fmtTC(t),hms:fmtHMS(t),time:t});
       commentIn.value='';
       mkBadge.textContent = totalComments();
       showToast(`M${m.num} にコメントを追加`,'var(--gold)');
@@ -1678,10 +1683,9 @@ cphClose.addEventListener('click', ()=>cpanel.classList.remove('open'));
 // COMMENT MODE POPUP（追加/上書き選択）
 // ════════════════════════════════════════════
 const commentModePopup = $('comment-mode-popup');
-let commentModeBlocked = false;
-let isOverwriteMode = false;
-let overwriteOriginal = '';
-let isAddMode = false; // 追加モード
+let commentModeBlocked = false; // ポップアップ表示中は音声をブロック
+let isOverwriteMode = false;    // 上書きモード
+let overwriteOriginal = '';     // 上書き前の元コメント
 
 function showCommentModePopup(m) {
   commentModeBlocked = true;
@@ -1689,8 +1693,16 @@ function showCommentModePopup(m) {
 }
 function hideCommentModePopup() {
   commentModeBlocked = false;
+  isAddMode = false;
+  isOverwriteMode = false;
+  overwriteOriginal = '';
   commentModePopup.classList.remove('show');
 }
+
+$('cm-btn-cancel').addEventListener('click', () => {
+  hideCommentModePopup();
+  commentIn.value = '';
+});
 
 $('cm-btn-add').addEventListener('click', () => {
   if(selMkId !== null) {
@@ -1698,10 +1710,10 @@ $('cm-btn-add').addEventListener('click', () => {
     if(m && m.comments.length > 0) {
       const existing = m.comments.map(c=>c.text).join(' ');
       commentIn.value = existing;
-      isAddMode = true; // 追加モードON
     }
   }
   hideCommentModePopup();
+  isAddMode = true; // hideの後にセット（hideでリセットされるため）
   if(!('ontouchstart' in window)) commentIn.focus();
   startVoice();
 });
